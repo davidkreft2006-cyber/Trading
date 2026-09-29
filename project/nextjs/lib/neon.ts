@@ -11,9 +11,13 @@ export const NEON_URL = process.env.NEXT_PUBLIC_NEON_URL ?? 'https://ep-odd-glad
 
 let client: ReturnType<typeof createClient> | null = null;
 
-/** Einmalige Client-Instanz (nur im Browser verwenden) */
+/**
+  Einmalige Client-Instanz (nur im Browser verwenden).
+  Auth läuft über /api/auth auf der eigenen Domain (siehe app/api/auth/[...path]/route.ts),
+  sonst verwirft Safari das Sitzungs-Cookie als Fremd-Cookie.
+*/
 export function neon() {
-  if (!client) client = createClient(NEON_URL);
+  if (!client) client = createClient(NEON_URL, { auth: { url: `${window.location.origin}/api/auth` } });
   return client;
 }
 
