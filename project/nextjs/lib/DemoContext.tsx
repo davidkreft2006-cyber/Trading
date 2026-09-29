@@ -1,7 +1,8 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ASSETS, fmtPrice, fmtQty, nf, priceOf, type Asset, type CoinSym } from './data';
-import { THEME_KEY, clearData, emptyBalances, loadData, saveData, type Balances, type DemoData, type Tx } from './storage';
+import { clearData, emptyBalances, loadData, saveData, type Balances, type DemoData, type Tx } from './storage';
+import { CheckCircle } from '@phosphor-icons/react';
 import ConfirmDialog, { type ConfirmRequest } from '@/components/ConfirmDialog';
 
 interface Ctx {
@@ -11,8 +12,6 @@ interface Ctx {
   balances: Balances;
   txs: Tx[];
   total: number;
-  theme: 'light' | 'dark';
-  toggleTheme: () => void;
   login: (name: string) => string | null;
   logout: () => void;
   addFunds: (asset: Asset, amount: number) => void;
@@ -30,24 +29,20 @@ export const useDemo = () => {
   return c;
 };
 
-const NAME_RE = /^[\p{L}\p{N} ._-]{2,24}$/u;
+const NAME_RE = /^[\p{L}\p{N} ._-]+$/u;
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<DemoData>({ session: null, profiles: {} });
   const [ready, setReady] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [pending, setPending] = useState<ConfirmRequest | null>(null);
   const [toastMsg, setToastMsg] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setData(loadData());
-    const t = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | null;
-    setTheme(t ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
     setReady(true);
   }, []);
   useEffect(() => { if (ready) saveData(data); }, [data, ready]);
-  useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); }, [theme]);
 
   const toast = useCallback((msg: string) => {
     clearTimeout(toastTimer.current);
@@ -71,29 +66,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Ctx = {
-    ready, user, balances, txs, total, theme,
+    ready, user, balances, txs, total,
     profileNames: Object.keys(data.profiles),
-    toggleTheme: () => setTheme(t => {
-      const n = t === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_KEY, n);
-      return n;
-    }),
     login: raw => {
       const name = raw.trim();
-      if (!NAME_RE.test(name)) return '2–24 Zeichen: Buchstaben, Zahlen, Leerzeichen, Punkt, - und _.';
+      if (name.length < 2) return 'Bitte mindestens 2 Zeichen eingeben.';
+      if (name.length > 24) return 'Maximal 24 Zeichen.';
+      if (!NAME_RE.test(name)) return 'Nur Buchstaben, Zahlen, Leerzeichen, Punkt, - und _.';
       const existed = !!data.profiles[name];
       setData(d => ({
         session: name,
         profiles: d.profiles[name] ? d.profiles : { ...d.profiles, [name]: { balances: emptyBalances(), txs: [] } }
       }));
-      toast(existed ? `Willkommen zurück, ${name} (Demo)` : `Demo-Profil „${name}“ angelegt`);
+      toast(existed ? `Willkommen zurück, ${name}` : `Profil „${name}“ angelegt`);
       return null;
     },
-    logout: () => { setData(d => ({ ...d, session: null })); toast('Abgemeldet. Demo-Daten bleiben gespeichert.'); },
+    logout: () => { setData(d => ({ ...d, session: null })); toast('Abgemeldet'); },
     addFunds: (asset, amount) => {
       commit({ ...balances, [asset]: balances[asset] + amount },
-        { type: 'Demo-Einzahlung', asset, amount, detail: 'Spielgeld · keine echte Einzahlung' });
-      toast(`+${fmtQty(amount)} ${asset} Demo-Guthaben hinzugefügt`);
+        { type: 'Demo-Einzahlung', asset, amount, detail: 'Testguthaben' });
+      toast(`+${fmtQty(amount)} ${asset} gutgeschrieben`);
     },
     trade: (side, sym, qty) => {
       const price = priceOf(sym);
@@ -106,17 +98,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         amount: side === 'buy' ? qty : -qty,
         detail: `@ ${fmtPrice(price)} USDT · ${side === 'buy' ? '−' : '+'}${nf(tot, 2)} USDT`
       });
-      toast(`${side === 'buy' ? 'Demo-Kauf: +' : 'Demo-Verkauf: −'}${fmtQty(qty)} ${sym}`);
+      toast(`${side === 'buy' ? 'Kauf ausgeführt: +' : 'Verkauf ausgeführt: −'}${fmtQty(qty)} ${sym}`);
     },
     transfer: (asset, amount, to) => {
       commit({ ...balances, [asset]: Math.max(0, balances[asset] - amount) },
-        { type: 'Übertragung (Simulation)', asset, amount: -amount, detail: `An Demo-Empfänger „${to}“` });
-      toast(`Simulierte Übertragung an ${to} gebucht`);
+        { type: 'Übertragung (Simulation)', asset, amount: -amount, detail: `An ${to}` });
+      toast(`Übertragung an ${to} gebucht`);
     },
     resetAll: () => {
       clearData();
       setData({ session: null, profiles: {} });
-      toast('Alle Demo-Daten wurden gelöscht.');
+      toast('Alle Daten wurden gelöscht');
     },
     confirm: req => setPending(req),
     toast
@@ -130,8 +122,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           onConfirm={() => { pending.onConfirm(); setPending(null); }} />
       )}
       {toastMsg && (
-        <div role="status" className="fixed bottom-6 left-1/2 z-[90] max-w-[calc(100%-32px)] -translate-x-1/2 border-l-[6px] border-accent bg-[#201e1d] px-4 py-3.5 text-[15px] font-semibold text-[#f3f2f2]">
-          {toastMsg}
+        <div role="status" aria-live="polite"
+          className="fixed left-4 right-4 top-[calc(12px+env(safe-area-inset-top))] z-toast mx-auto flex max-w-[420px] animate-rise items-center gap-2.5 rounded-panel bg-ink px-4 py-3 text-sm font-medium text-bg shadow-[0_16px_40px_-16px_rgb(8_11_15/0.5)] md:bottom-6 md:left-auto md:right-6 md:top-auto md:mx-0">
+          <CheckCircle weight="fill" className="h-[18px] w-[18px] flex-none text-up" aria-hidden />
+          <span>{toastMsg}</span>
         </div>
       )}
     </DemoCtx.Provider>

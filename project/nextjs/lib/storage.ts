@@ -6,7 +6,6 @@
 import { ASSETS, type Asset } from './data';
 
 export const STORAGE_KEY = 'kryo-demo:v1';
-export const THEME_KEY = 'kryo-demo:theme';
 
 export type Balances = Record<Asset, number>;
 
@@ -36,9 +35,9 @@ export function loadData(): DemoData {
 }
 
 export function saveData(data: DemoData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* Speicher voll oder blockiert */ }
 }
 
 export function clearData() {
-  localStorage.removeItem(STORAGE_KEY);
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* blockiert */ }
 }
