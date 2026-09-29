@@ -41,7 +41,7 @@ export default function Modal({ title, description, onClose, children, footer, s
 export const ModalCancel = ({ onClick }: { onClick: () => void }) => (
   <LiquidButton type="button" variant="glass" size="lg" onClick={onClick}>Abbrechen</LiquidButton>
 );
-export const ModalSubmit = ({ children, form, onClick, tone = 'primary' }: { children: ReactNode; form?: string; onClick?: () => void; tone?: 'primary' | 'up' | 'down' | 'danger' }) => {
+export const ModalSubmit = ({ children, form, onClick, tone = 'primary', disabled }: { children: ReactNode; form?: string; onClick?: () => void; tone?: 'primary' | 'up' | 'down' | 'danger'; disabled?: boolean }) => {
   const variant = ({ primary: 'primary', up: 'buy', down: 'sell', danger: 'destructive' } as const)[tone];
-  return <LiquidButton type={form ? 'submit' : 'button'} form={form} onClick={onClick} variant={variant} size="lg">{children}</LiquidButton>;
+  return <LiquidButton type={form ? 'submit' : 'button'} form={form} onClick={onClick} variant={variant} size="lg" disabled={disabled}>{children}</LiquidButton>;
 };

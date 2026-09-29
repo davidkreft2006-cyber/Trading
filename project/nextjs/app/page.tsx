@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, HardDrives, Plus, UserCircle, ArrowsLeftRight } from '@phosphor-icons/react';
 import { fmtPrice, type Category } from '@/lib/data';
 import { useQuotes } from '@/lib/quotes';
-import { useDemo } from '@/lib/DemoContext';
+import { useAccount } from '@/lib/AccountContext';
 import MarketTable from '@/components/MarketTable';
 import { Change, CoinIcon, LiveBadge, PriceChart, Sparkline } from '@/components/ui/primitives';
 import CategoryTabs from '@/components/CategoryTabs';
@@ -12,14 +12,14 @@ import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { ShinyButton } from '@/components/ui/shiny-button';
 
 const STEPS = [
-  { icon: UserCircle, t: 'Namen wählen', d: 'Kein Passwort, keine E-Mail, keine Telefonnummer. Ein Name reicht.' },
+  { icon: UserCircle, t: 'Konto anlegen', d: 'Mit E-Mail und Passwort. Dein Konto funktioniert auf jedem Gerät.' },
   { icon: Plus, t: 'Guthaben aufladen', d: 'Mit USDT oder Krypto, direkt in der Wallet. Damit kaufst du auch Aktien, ETFs und Gold.' },
   { icon: ArrowsLeftRight, t: 'Handeln', d: 'Kaufen, verkaufen und übertragen. Vor jeder Order siehst du eine Übersicht.' },
-  { icon: HardDrives, t: 'Lokal gespeichert', d: 'Guthaben und Verlauf bleiben in deinem Browser und lassen sich jederzeit löschen.' }
+  { icon: HardDrives, t: 'Sicher gespeichert', d: 'Guthaben und Verlauf liegen in deinem Konto und lassen sich jederzeit löschen.' }
 ];
 
 export default function Home() {
-  const { user } = useDemo();
+  const { user } = useAccount();
   const [tradfi, setTradfi] = useState<Category>('stock');
   const { coins, coinOf, statusOf } = useQuotes();
   const coinsIn = (cat: Category) => coins.filter(c => c.cat === cat);
@@ -33,10 +33,10 @@ export default function Home() {
             Krypto handeln.<br /><span className="text-muted">Ohne Umwege.</span>
           </h1>
           <p className="max-w-[40ch] animate-rise text-[17px] leading-relaxed text-muted [animation-delay:60ms]">
-            Märkte, Orders und Wallet auf einer Oberfläche. Anmelden mit einem Namen, ohne Passwort.
+            Märkte, Orders und Wallet auf einer Oberfläche. Dein Konto ist auf jedem Gerät dabei.
           </p>
           <div className="flex animate-rise flex-wrap gap-3 [animation-delay:120ms]">
-            <ShinyButton href={user ? '/wallet' : '/login'}>
+            <ShinyButton href={user ? '/wallet' : '/register'}>
               {user ? 'Zur Wallet' : 'Loslegen'}<ArrowRight weight="bold" className="size-4" />
             </ShinyButton>
             <LiquidButton asChild variant="glass" size="xl">

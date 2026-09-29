@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
-import { DemoProvider } from '@/lib/DemoContext';
+import { AccountProvider } from '@/lib/AccountContext';
 import { QuotesProvider } from '@/lib/quotes';
 import { Footer, Header, MobileTabBar } from '@/components/Shell';
 import { GlassFilter } from '@/components/ui/liquid-glass-button';
 
 export const metadata: Metadata = {
   title: { default: 'Auvryn', template: '%s · Auvryn' },
-  description: 'Krypto-Märkte, Handel und Wallet. Ein unabhängiges Konzeptprojekt ohne echtes Geld.',
+  description: 'Krypto-Märkte, Handel und Wallet. Konto, Wallet und Handel mit Live-Kursen.',
   robots: { index: false, follow: false },
   // Vom iPhone-Home-Bildschirm aus als eigene App starten (ohne Safari-Leiste)
   appleWebApp: { capable: true, title: 'Auvryn', statusBarStyle: 'black' }
@@ -28,13 +28,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Zum Inhalt springen
         </a>
         <QuotesProvider>
-          <DemoProvider>
+          <AccountProvider>
             <Header />
             <main id="inhalt" className="flex-1">{children}</main>
             <Footer />
             <MobileTabBar />
             <GlassFilter />
-          </DemoProvider>
+          </AccountProvider>
         </QuotesProvider>
       </body>
     </html>

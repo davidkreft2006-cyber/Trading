@@ -1,6 +1,6 @@
-# Auvryn – Krypto-Börse & Wallet (Design-Demo)
+# Auvryn – Krypto-Börse & Wallet
 
-Fiktive, rein lokale Design-Demo. Kein echtes Konto, kein echtes Geld, keine Wallet-Verbindung, keine Zahlungsabwicklung, keine Anbindung an eine echte Börse. Alle Kurse sind statische Beispieldaten (`lib/data.ts`).
+Unabhängiges Projekt mit echten Konten (Neon) und Live-Kursen, aber ohne echtes Geld: keine Wallet-Verbindung, keine Zahlungsabwicklung, keine Anbindung an eine echte Börse. Guthaben wird manuell aufgeladen.
 
 ## Start
 
@@ -17,7 +17,9 @@ Dann http://localhost:3000 öffnen. Produktions-Build: `npm run build && npm sta
 ## Seiten
 
 - `/` Startseite: Hero, Krypto-Übersicht, Sektion „Aktien, ETFs und Rohstoffe“
-- `/login` Demo-Login: nur ein frei wählbarer Demo-Name
+- `/login` Anmelden mit E-Mail und Passwort
+- `/register` Konto anlegen (Name, E-Mail, Passwort)
+- `/forgot-password` Passwort zurücksetzen per 6-stelligem E-Mail-Code
 - `/wallet` Gesamtguthaben, Assets, Transaktionsverlauf, „Guthaben hinzufügen“, Übertragen, Zurücksetzen
 - `/markets` Alle Märkte mit Kategorien (Krypto, Aktien, ETFs, Rohstoffe), Filter und Suche; per `?cat=stock|etf|commodity|crypto` direkt ansteuerbar
 - `/trade?pair=BTC` Chart + Kaufen/Verkaufen (Simulation)
@@ -41,37 +43,27 @@ Echte Kurse (`lib/quotes.tsx`, ohne API-Schlüssel):
 - **Farben:** immer Dunkelmodus (kein Umschalter). Navy-getönte Flächen aus dem Logo-Navy, Türkis aus dem Logo als einziger Akzent. Grün/Rot nur für Kursrichtung und Kauf/Verkauf (Grün bewusst gelblicher als das Türkis), immer mit Vorzeichen und Pfeil; mit dem Palette-Validator geprüft. Tokens in `app/globals.css`.
 - **Logo:** `public/brand/auvryn-logo.png` (Schriftzug für dunklen Grund aufgehellt) und `public/brand/auvryn-mark.png` (Zeichen, mobil im Header); Favicon `app/icon.png`.
 - **Radien:** Buttons, Umschalter und Paar-Chips als Pill; Eingabefelder und Auswahlraster 6 px; Panels 10 px; Coin-Marken 4 px.
-- **Buttons:** `LiquidButton` aus `components/ui/liquid-glass-button.tsx` (Varianten `primary`, `glass`, `buy`, `sell`, `danger`, `ghost`, `destructive`). Der SVG-Filter `<GlassFilter />` wird einmal in `app/layout.tsx` gerendert; die Verzerrung wirkt nur in Chromium, andere Browser zeigen die Glaskante ohne Verzerrung.
-- **Signatur-CTA:** `ShinyButton` aus `components/ui/shiny-button.tsx` (Styles in `shiny-button.css`), bewusst nur für den Einstieg: „Loslegen“/„Zur Wallet“ auf der Startseite und „Weiter“ bei der Anmeldung. Unterstützt `href` (Link) und `type` (Formular).
+- **Buttons:** `LiquidButton` aus `components/ui/liquid-glass-button.tsx`, alle Varianten als durchscheinendes Glas (`primary` = türkises Glas mit Schein, `glass`, `buy`, `sell`, `danger`, `ghost`, `destructive`). Der SVG-Filter `<GlassFilter />` wird einmal in `app/layout.tsx` gerendert; die Verzerrung wirkt nur in Chromium, andere Browser zeigen die Glaskante ohne Verzerrung.
+- **Signatur-CTA:** `ShinyButton` aus `components/ui/shiny-button.tsx` (Styles in `shiny-button.css`), bewusst nur für den Einstieg: „Loslegen“/„Zur Wallet“ auf der Startseite. Unterstützt `href` (Link) und `type` (Formular).
 - **shadcn-Struktur:** `components.json`, `lib/utils.ts` (`cn`), Komponenten in `components/ui/`. Die shadcn-Farbnamen (`primary`, `secondary`, `destructive`, `ring` …) sind in `tailwind.config.ts` auf die Auvryn-Tokens abgebildet.
 - **Icons:** Phosphor (`@phosphor-icons/react`).
 - **Bausteine:** `components/ui/primitives.tsx` (CoinIcon, Change, Sparkline, PriceChart, Note, EmptyState, Segmented), `components/Modal.tsx`, `components/MarketTable.tsx`.
 - **Mobil:** Navigation als Tab-Leiste unten, Dialoge als Bottom-Sheet.
 - **Bewegung:** kurze CSS-Übergänge, respektiert `prefers-reduced-motion`.
 
-## Wo wird das Demo-Guthaben gespeichert?
+## Konto und Datenbank (Neon)
 
-Ausschließlich im Browser, in `window.localStorage`:
+Konten, Guthaben und Verlauf liegen in **Neon Postgres** (Projekt `auvryn`, ID `lively-bird-26926118`, Region Frankfurt `aws-eu-central-1`, Branch `main`, Datenbank `neondb`).
 
-- Schlüssel `kryo-demo:v1` – aktive Sitzung und alle Demo-Profile mit Guthaben und Transaktionen
-
-Struktur:
-
-```json
-{
-  "session": "Satoshi Demo",
-  "profiles": {
-    "Satoshi Demo": {
-      "balances": { "USDT": 1000, "BTC": 0.01, "ETH": 0 },
-      "txs": [{ "id": "…", "time": 1727600000000, "type": "Demo-Einzahlung", "asset": "USDT", "amount": 1000, "detail": "…" }]
-    }
-  }
-}
-```
+- **Anmeldung:** Neon Auth (Better Auth). E-Mail + Passwort, keine E-Mail-Bestätigung nötig. Passwort-Reset per 6-stelligem Code (E-Mails kommen vom Neon-Absender). Vertrauenswürdige Domain: `https://trading-nine-lemon.vercel.app`; für eine neue Domain in der Neon-Konsole unter Auth → Domains ergänzen.
+- **Zugriff aus dem Browser:** Neon Data API (PostgREST) über `@neondatabase/neon-js`. Die Projekt-URL steht in `lib/neon.ts` (öffentlich, wie ein Supabase-Anon-Key); überschreibbar mit `NEXT_PUBLIC_NEON_URL`. In Vercel muss nichts eingestellt werden.
+- **Tabellen:** `balances (user_id, asset, amount)` und `transactions (id, user_id, created_at, type, asset, amount, price, total, counterparty)`. Row-Level Security: angemeldete Nutzer dürfen nur ihre eigenen Zeilen **lesen**; Schreiben direkt ist gesperrt.
+- **Schreiben nur über geprüfte Funktionen** (SECURITY DEFINER, prüfen Beträge und Guthaben serverseitig, Fehlermeldungen auf Deutsch): `add_funds(p_asset, p_amount)`, `execute_trade(p_side, p_asset, p_qty, p_price)`, `transfer_out(p_asset, p_amount, p_to)`, `reset_account()`. Hilfsfunktionen liegen im nicht erreichbaren Schema `app_private`.
 
 Im Code:
 
-- `lib/storage.ts` – Typen sowie `loadData`, `saveData`, `clearData` (Lesen/Schreiben/Löschen von `localStorage`)
-- `lib/DemoContext.tsx` – React-Context mit dem Zustand. Lädt beim Start aus `localStorage` und schreibt jede Änderung zurück (`useEffect` auf `data`). Hier liegen `addFunds`, `trade`, `transfer`, `resetAll`.
+- `lib/neon.ts` – Client und Übersetzung der Auth-Fehler
+- `lib/AccountContext.tsx` – React-Context: Sitzung, Guthaben, Verlauf, `signIn`, `signUp`, `signOut`, `requestPasswordCode`, `resetPassword`, `addFunds`, `trade`, `transfer`, `resetAll`
+- `components/AuthShell.tsx` – gemeinsames Layout und Felder der Anmeldeseiten
 
-Zurücksetzen: Button „Alle Daten zurücksetzen“ in der Wallet, oder in den Browser-DevTools `localStorage.removeItem('kryo-demo:v1')`.
+Zurücksetzen: „Zurücksetzen“ in der Wallet löscht Guthaben und Verlauf des Kontos (das Konto bleibt).

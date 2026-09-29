@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowDownLeft, ArrowUpRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
 import { ASSETS, FUNDABLE, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, type Asset } from '@/lib/data';
 import { useQuotes } from '@/lib/quotes';
-import type { Tx } from '@/lib/storage';
-import { useDemo } from '@/lib/DemoContext';
+import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
 import { CoinIcon, EmptyState, Note } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
@@ -51,22 +50,27 @@ function AmountField({ id, value, onChange, unit, err, placeholder, autoFocus }:
 }
 
 function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount: string }; onClose: () => void }) {
-  const { addFunds } = useDemo();
+  const { addFunds } = useAccount();
   const { priceOf } = useQuotes();
   const [asset, setAsset] = useState<Asset>(initial?.asset ?? 'USDT');
   const [amount, setAmount] = useState(initial?.amount ?? '');
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const v = parseAmount(amount);
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     if (!(v > 0)) return setErr('Bitte einen Betrag größer als 0 eingeben.');
     if (v * priceOf(asset) > 10_000_000) return setErr('Maximal 10 Mio. USD Gegenwert pro Aufladung.');
-    addFunds(asset, v);
+    setBusy(true);
+    const e2 = await addFunds(asset, v);
+    setBusy(false);
+    if (e2) return setErr(e2);
     onClose();
   };
   return (
     <Modal title="Guthaben hinzufügen" onClose={onClose}
-      footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="add-form">Hinzufügen</ModalSubmit></>}>
+      footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="add-form" disabled={busy}>{busy ? 'Wird gebucht …' : 'Hinzufügen'}</ModalSubmit></>}>
       <form id="add-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
         <AssetPicker value={asset} options={FUNDABLE} onChange={a => { setAsset(a); setErr(''); }} />
         <div className="flex flex-col gap-2">
@@ -87,7 +91,7 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
 }
 
 function TransferModal({ onClose }: { onClose: () => void }) {
-  const { balances, transfer } = useDemo();
+  const { balances, transfer } = useAccount();
   const owned = ASSETS.filter(a => balances[a] > 0);
   const options: Asset[] = owned.length ? owned : ['USDT'];
   const held = options[0];
@@ -95,18 +99,23 @@ function TransferModal({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState('');
   const [to, setTo] = useState('');
   const [err, setErr] = useState('');
-  const submit = (e: FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const v = parseAmount(amount);
     if (to.trim().length < 2) return setErr('Bitte einen Empfänger mit mindestens 2 Zeichen eingeben.');
     if (!(v > 0)) return setErr('Bitte einen Betrag größer als 0 eingeben.');
     if (v > balances[asset] + 1e-12) return setErr('Nicht genügend Guthaben.');
-    transfer(asset, v, to.trim());
+    setBusy(true);
+    const e2 = await transfer(asset, v, to.trim());
+    setBusy(false);
+    if (e2) return setErr(e2);
     onClose();
   };
   return (
     <Modal title="Übertragen" onClose={onClose}
-      footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="tr-form">Simuliert übertragen</ModalSubmit></>}>
+      footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="tr-form" disabled={busy}>{busy ? 'Wird gebucht …' : 'Übertragen'}</ModalSubmit></>}>
       <form id="tr-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
         <AssetPicker value={asset} options={options} label="Was übertragen?" onChange={a => { setAsset(a); setErr(''); }}>
           <span className="hint">Verfügbar: <span className="num text-muted">{fmtQty(balances[asset])} {asset}</span></span>
@@ -129,11 +138,16 @@ function TransferModal({ onClose }: { onClose: () => void }) {
 }
 
 const TX_ICON: Record<Tx['type'], { icon: typeof Plus; label: string }> = {
-  'Demo-Einzahlung': { icon: Plus, label: 'Einzahlung' },
-  'Kauf (Simulation)': { icon: ArrowDownLeft, label: 'Kauf' },
-  'Verkauf (Simulation)': { icon: ArrowUpRight, label: 'Verkauf' },
-  'Übertragung (Simulation)': { icon: PaperPlaneTilt, label: 'Übertragung' }
+  deposit: { icon: Plus, label: 'Einzahlung' },
+  buy: { icon: ArrowDownLeft, label: 'Kauf' },
+  sell: { icon: ArrowUpRight, label: 'Verkauf' },
+  transfer: { icon: PaperPlaneTilt, label: 'Übertragung' }
 };
+
+const txDetail = (t: Tx) =>
+  t.type === 'deposit' ? 'Manuell aufgeladen'
+  : t.type === 'transfer' ? `An ${t.counterparty ?? '–'}`
+  : `@ ${fmtPrice(t.price ?? 0)} · ${t.type === 'buy' ? '−' : '+'}${nf(Math.abs(t.total ?? 0), 2)} USDT`;
 
 function WalletSkeleton() {
   return (
@@ -148,13 +162,13 @@ function WalletSkeleton() {
 }
 
 export default function WalletPage() {
-  const { ready, user, balances, txs, total, profileNames, resetAll, confirm } = useDemo();
+  const { ready, user, balances, txs, total, resetAll, confirm } = useAccount();
   const { priceOf } = useQuotes();
   const router = useRouter();
   const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer' } | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  // Nur beim Laden prüfen: Nach Abmelden/Zurücksetzen navigiert der Auslöser selbst zur Startseite.
+  // Nur beim Laden prüfen: Nach dem Abmelden navigiert der Header selbst zur Startseite.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (ready && !user) router.replace('/login?next=/wallet'); }, [ready]);
   if (!ready || !user) return <WalletSkeleton />;
@@ -166,16 +180,16 @@ export default function WalletPage() {
   const openAdd = (initial?: { asset: Asset; amount: string }) => setModal({ kind: 'add', initial });
 
   const askReset = () => confirm({
-    title: 'Alle Daten zurücksetzen?', label: 'Endgültig zurücksetzen', tone: 'danger',
-    lines: [{ k: 'Profile', v: String(profileNames.length) }, { k: 'Transaktionen (aktuelles Profil)', v: String(txs.length) }, { k: 'Gespeichert in', v: 'diesem Browser' }],
-    onConfirm: () => { resetAll(); router.push('/'); }
+    title: 'Guthaben und Verlauf löschen?', label: 'Endgültig löschen', tone: 'danger',
+    lines: [{ k: 'Positionen', v: String(rows.length) }, { k: 'Transaktionen', v: String(txs.length) }, { k: 'Konto', v: user.email }],
+    onConfirm: () => { void resetAll(); }
   });
 
   return (
     <div className="wrap flex flex-col gap-5 pt-6 md:pt-8">
       <section className="panel grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="text-[13px] text-muted">Gesamtguthaben von <span className="font-medium text-ink">{user}</span></span>
+          <span className="text-[13px] text-muted">Gesamtguthaben von <span className="font-medium text-ink">{user.name}</span></span>
           <span className="num break-words text-[40px] font-semibold leading-none tracking-[-0.03em] sm:text-5xl">{fmtUsd(total)}</span>
           <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT</span>
         </div>
@@ -255,7 +269,7 @@ export default function WalletPage() {
                       <span className="flex h-8 w-8 items-center justify-center rounded-ctl bg-subtle text-muted"><Icon className="h-4 w-4" aria-hidden /></span>
                       <div className="flex min-w-0 flex-col">
                         <span className="text-sm font-medium">{label} <span className="font-normal text-faint">{t.asset}</span></span>
-                        <span className="truncate text-xs text-faint">{t.type === 'Demo-Einzahlung' ? 'Manuell aufgeladen' : t.detail}</span>
+                        <span className="num truncate text-xs text-faint">{txDetail(t)}</span>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={`num text-sm font-medium ${t.amount >= 0 ? 'text-up' : 'text-ink'}`}>{t.amount >= 0 ? '+' : '−'}{fmtQty(Math.abs(t.amount))}</span>
@@ -279,10 +293,10 @@ export default function WalletPage() {
 
       <section className="flex flex-col gap-3 rounded-panel border border-dashed border-line-strong px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-0.5">
-          <strong className="text-sm font-semibold">Daten zurücksetzen</strong>
-          <p className="max-w-[60ch] text-[13px] text-muted">Löscht alle Profile, Guthaben und Transaktionen in diesem Browser.</p>
+          <strong className="text-sm font-semibold">Guthaben zurücksetzen</strong>
+          <p className="max-w-[60ch] text-[13px] text-muted">Löscht alle Guthaben und Transaktionen in deinem Konto. Das Konto selbst bleibt bestehen.</p>
         </div>
-        <LiquidButton variant="danger" size="sm" className="self-start sm:self-auto" onClick={askReset}><Trash />Alle Daten zurücksetzen</LiquidButton>
+        <LiquidButton variant="danger" size="sm" className="self-start sm:self-auto" onClick={askReset}><Trash />Zurücksetzen</LiquidButton>
       </section>
 
       {modal?.kind === 'add' && <AddFundsModal initial={modal.initial} onClose={() => setModal(null)} />}

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowsLeftRight, ChartLineUp, House, SignOut, Wallet } from '@phosphor-icons/react';
-import { useDemo } from '@/lib/DemoContext';
+import { useAccount } from '@/lib/AccountContext';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 export function Logo() {
@@ -26,8 +26,8 @@ const isActive = (path: string, href: string) => (href === '/' ? path === '/' : 
 export function Header() {
   const path = usePathname();
   const router = useRouter();
-  const { ready, user, logout } = useDemo();
-  const onLogout = () => { router.push('/'); logout(); };
+  const { ready, user, signOut } = useAccount();
+  const onLogout = () => { router.push('/'); void signOut(); };
 
   return (
     <header className="sticky top-0 z-header border-b border-line bg-bg">
@@ -51,8 +51,8 @@ export function Header() {
           ) : user ? (
             <>
               <Link href="/wallet" className="flex h-9 items-center gap-2 rounded-ctl pl-1 pr-2.5 text-sm font-medium hover:bg-subtle">
-                <span className="flex h-7 w-7 items-center justify-center rounded-tag bg-accent-soft text-xs font-semibold text-accent">{user.slice(0, 1).toUpperCase()}</span>
-                <span className="max-w-[9rem] truncate">{user}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-tag bg-accent-soft text-xs font-semibold text-accent">{user.name.slice(0, 1).toUpperCase()}</span>
+                <span className="max-w-[9rem] truncate">{user.name}</span>
               </Link>
               <LiquidButton variant="ghost" size="icon" onClick={onLogout} aria-label="Abmelden" title="Abmelden">
                 <SignOut className="size-[18px]" />

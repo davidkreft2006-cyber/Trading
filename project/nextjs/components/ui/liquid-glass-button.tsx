@@ -65,7 +65,7 @@ export { Button, buttonVariants, liquidbuttonVariants, LiquidButton, GlassFilter
     so bleibt die Form auch bei überschriebenem Radius stimmig.
   - `isolate` auf dem Button, damit die Ebenen mit -z-10 nicht hinter Panel-Hintergründe rutschen.
   - asChild funktioniert über Slottable (Links können wie Buttons aussehen).
-  - Zusätzliche Varianten passend zum Farbsystem: glass, primary, buy, sell, danger.
+  - Zusätzliche Varianten passend zum Farbsystem: glass, primary (türkises Glas), buy, sell, danger.
   - Der SVG-Filter wird einmal global gerendert (<GlassFilter /> in app/layout.tsx), nicht pro Button.
 */
 const liquidbuttonVariants = cva(
@@ -74,13 +74,14 @@ const liquidbuttonVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent text-primary",
-        glass: "bg-surface/40 text-ink hover:bg-surface/70",
-        primary: "bg-primary text-primary-foreground hover:bg-accent-hover",
-        buy: "bg-up text-on-accent hover:bg-up/90",
-        sell: "bg-down text-on-accent hover:bg-down/90",
+        // Türkises Glas: durchscheinende Füllung, feine Lichtkante, leichter Schein
+        glass: "bg-surface/40 text-ink ring-1 ring-inset ring-white/[0.06] hover:bg-accent/10 hover:ring-accent/35",
+        primary: "bg-accent/[0.18] text-[rgb(214_250_246)] ring-1 ring-inset ring-accent/50 shadow-[0_0_22px_-8px_rgb(var(--accent)/0.7)] hover:bg-accent/[0.28] hover:ring-accent/70 hover:shadow-[0_0_28px_-6px_rgb(var(--accent)/0.85)]",
+        buy: "bg-up/25 text-ink ring-1 ring-inset ring-up/60 shadow-[0_0_22px_-8px_rgb(var(--up)/0.7)] hover:bg-up/35",
+        sell: "bg-down/20 text-ink ring-1 ring-inset ring-down/55 shadow-[0_0_22px_-8px_rgb(var(--down)/0.7)] hover:bg-down/30",
         danger: "bg-transparent text-down hover:bg-down/10",
         destructive:
-          "bg-destructive text-on-accent hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+          "bg-down/20 text-ink ring-1 ring-inset ring-down/55 hover:bg-down/30 focus-visible:ring-destructive/40",
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:
@@ -116,8 +117,8 @@ function LiquidButton({
     asChild?: boolean
   }) {
   const Comp = asChild ? Slot : "button"
-  // Gefüllte Varianten würden ihre eigene Füllfarbe verzerren, daher nur bei transparenten Varianten
-  const distort = !variant || variant === "default" || variant === "glass" || variant === "ghost" || variant === "danger"
+  // Alle Glas-Varianten sind durchscheinend und verzerren den Hintergrund; nur Link/Outline nicht
+  const distort = variant !== "link" && variant !== "outline" && variant !== "secondary"
 
   return (
     <Comp

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Info, Receipt } from '@phosphor-icons/react';
 import { categoryLabel, coinsIn, fmtPrice, fmtQty, nf, parseAmount, volShort, type Category } from '@/lib/data';
-import { useDemo } from '@/lib/DemoContext';
+import { useAccount } from '@/lib/AccountContext';
 import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, PriceChart, Segmented } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import CategoryTabs from '@/components/CategoryTabs';
@@ -33,7 +33,7 @@ function PairBar({ active, cat, onPick }: { active: string; cat: Category; onPic
 function Trade() {
   const params = useSearchParams();
   const router = useRouter();
-  const { ready, user, balances, txs, trade, confirm } = useDemo();
+  const { ready, user, balances, txs, trade, confirm } = useAccount();
   const { coins, statusOf } = useQuotes();
   const coin = coins.find(c => c.sym === params.get('pair')) ?? coins[0];
   const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy');
@@ -43,7 +43,7 @@ function Trade() {
   const q = parseAmount(qty);
   const total = Number.isFinite(q) ? q * coin.price : 0;
   const up = coin.chg >= 0;
-  const orders = txs.filter(t => t.asset === coin.sym && t.type !== 'Demo-Einzahlung' && t.type !== 'Übertragung (Simulation)').slice(0, 6);
+  const orders = txs.filter(t => t.asset === coin.sym && (t.type === 'buy' || t.type === 'sell')).slice(0, 6);
 
   const setPct = (p: number) => {
     if (!user) return setErr('Bitte zuerst anmelden.');
@@ -68,7 +68,7 @@ function Trade() {
         { k: 'Paar', v: `${coin.sym}/${coin.quote}` }, { k: 'Menge', v: `${fmtQty(q)} ${coin.sym}` },
         { k: 'Preis (Market)', v: `${fmtPrice(price)} ${coin.quote}` }, { k: 'Gesamt', v: `${nf(tot, 2)} USDT`, strong: true }
       ],
-      onConfirm: () => { trade(side, coin.sym, q, price); setQty(''); }
+      onConfirm: () => { setQty(''); void trade(side, coin.sym, q, price).then(e => { if (e) setErr(e); }); }
     });
   };
 
@@ -168,7 +168,7 @@ function Trade() {
               {orders.map(t => (
                 <li key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2.5 sm:px-5">
                   <span className={`rounded-tag px-1.5 py-0.5 text-[11px] font-semibold ${t.amount >= 0 ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{t.amount >= 0 ? 'Kauf' : 'Verkauf'}</span>
-                  <span className="num truncate text-[13px] text-muted">{t.detail}</span>
+                  <span className="num truncate text-[13px] text-muted">@ {fmtPrice(t.price ?? 0)} · {new Date(t.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                   <span className="num text-right text-sm font-medium">{t.amount >= 0 ? '+' : '−'}{fmtQty(Math.abs(t.amount))}</span>
                 </li>
               ))}
