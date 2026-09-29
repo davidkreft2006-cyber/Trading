@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg,#f3f2f2);color:var(--ink,#201e1d);font-family:'Archivo',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--down,#a8200b)}a:hover{color:#ec3013}
+button,input{font-family:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid #ec3013;outline-offset:2px}
+input::placeholder{color:#8a8583}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg,#f3f2f2);color:var(--ink,#201e1d);--bg:{{ th.bg }};--surface:{{ th.surface }};--hover:{{ th.hover }};--ink:{{ th.ink }};--muted:{{ th.muted }};--muted2:{{ th.muted2 }};--line:{{ th.line }};--down:{{ th.down }};--up:{{ th.up }};--field:{{ th.field }}">
+
+<div style="position:sticky;top:0;z-index:60;background:#201e1d;color:#f3f2f2;border-bottom:1px solid #3a3735;display:flex;align-items:stretch;min-height:36px;font-size:13px;font-weight:600;letter-spacing:0.02em">
+  <div style="background:#ec3013;color:#ffffff;padding:8px 14px;font-weight:800;letter-spacing:0.08em;display:flex;align-items:center">DEMO</div>
+  <div style="padding:8px 14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px 14px">
+    <span>DEMO – kein echtes Konto</span>
+    <span style="color:#c9c5c3;font-weight:400">Kein echtes Geld, keine echten Kryptowährungen. Alle Daten bleiben lokal im Browser.</span>
+  </div>
+</div>
+
+<header style="border-bottom:2px solid var(--ink,#201e1d);background:var(--bg,#f3f2f2)">
+  <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:flex;flex-wrap:wrap;align-items:center;gap:0 24px;min-height:64px">
+    <button onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;padding:12px 0;cursor:pointer;color:var(--ink,#201e1d)">
+      <span style="width:28px;height:28px;background:#ec3013;display:block"></span>
+      <span style="font-weight:800;font-size:22px;letter-spacing:-0.02em">KRYO</span>
+      <span style="font-size:11px;font-weight:800;border:2px solid var(--ink,#201e1d);padding:1px 5px;letter-spacing:0.06em">DEMO</span>
+    </button>
+    <nav style="display:flex;gap:4px;overflow-x:auto;order:{{ linksOrder }};flex-basis:{{ linksBasis }};flex-grow:1">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+        <button onClick="{{ n.onClick }}" style="background:none;border:0;border-bottom:3px solid {{ n.border }};padding:20px 12px 17px;font-size:15px;font-weight:600;color:var(--ink,#201e1d);cursor:pointer;white-space:nowrap" style-hover="color:#ec3013">{{ n.label }}</button>
+      </sc-for>
+    </nav>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <button onClick="{{ toggleTheme }}" aria-label="Farbmodus wechseln" style="background:none;border:2px solid var(--ink,#201e1d);padding:8px 10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink,#201e1d);white-space:nowrap" style-hover="background:var(--surface,#eae9e9)">{{ themeLabel }}</button>
+      <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ goWallet }}" style="display:flex;align-items:center;gap:8px;background:var(--surface,#eae9e9);border:0;padding:10px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:var(--hover,#e0dedd)">
+          <span style="width:22px;height:22px;background:var(--ink,#201e1d);color:var(--bg,#f3f2f2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">{{ userInitial }}</span>
+          <span>{{ userName }}</span>
+        </button>
+        <button onClick="{{ logout }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:8px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">Abmelden</button>
+      </sc-if>
+      <sc-if value="{{ loggedOut }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ goLogin }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:8px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">Anmelden</button>
+        <button onClick="{{ goLogin }}" style="background:#ec3013;border:2px solid #ec3013;padding:8px 12px;cursor:pointer;font-size:14px;font-weight:600;color:#ffffff" style-hover="background:#c9260c;border-color:#c9260c">Demo starten</button>
+      </sc-if>
+    </div>
+  </div>
+</header>
+
+<main style="flex:1">
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+  <section style="border-bottom:2px solid var(--ink,#201e1d)">
+    <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))">
+      <div style="padding:clamp(40px,7vw,96px) 32px clamp(40px,7vw,96px) 0;display:flex;flex-direction:column;gap:24px">
+        <span style="font-size:13px;font-weight:800;letter-spacing:0.1em;color:var(--down,#a8200b)">KRYPTO-BÖRSE · DESIGN-DEMO</span>
+        <h1 style="margin:0;font-size:clamp(40px,6vw,76px);line-height:0.98;font-weight:800;letter-spacing:-0.03em;text-wrap:balance">Handeln üben. Ohne echtes Geld.</h1>
+        <p style="margin:0;font-size:18px;line-height:1.5;max-width:520px;color:var(--muted,#3d3a38);text-wrap:pretty">Melde dich mit einem beliebigen Demo-Namen an, lade Demo-Guthaben auf und simuliere Käufe, Verkäufe und Übertragungen. Alles läuft lokal in deinem Browser.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px">
+          <button onClick="{{ goPrimary }}" style="display:flex;align-items:center;justify-content:space-between;gap:32px;min-width:220px;background:#ec3013;border:0;padding:16px 18px;cursor:pointer;font-size:16px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c"><span>{{ primaryCta }}</span><span>→</span></button>
+          <button onClick="{{ goMarkets }}" style="display:flex;align-items:center;justify-content:space-between;gap:32px;min-width:180px;background:none;border:2px solid var(--ink,#201e1d);padding:14px 16px;cursor:pointer;font-size:16px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)"><span>Märkte ansehen</span><span>→</span></button>
+        </div>
+      </div>
+      <div style="border-left:2px solid var(--ink,#201e1d);display:grid;grid-template-rows:repeat(3,1fr)">
+        <div style="padding:28px;border-bottom:2px solid var(--ink,#201e1d);display:grid;grid-template-columns:56px 1fr;gap:16px">
+          <span style="font-size:32px;font-weight:800;color:#ec3013;line-height:1">01</span>
+          <div style="display:flex;flex-direction:column;gap:6px"><strong style="font-size:18px">Demo-Name wählen</strong><span style="color:var(--muted2,#55504d);line-height:1.45">Kein Passwort, keine E-Mail, keine Telefonnummer.</span></div>
+        </div>
+        <div style="padding:28px;border-bottom:2px solid var(--ink,#201e1d);display:grid;grid-template-columns:56px 1fr;gap:16px">
+          <span style="font-size:32px;font-weight:800;color:#ec3013;line-height:1">02</span>
+          <div style="display:flex;flex-direction:column;gap:6px"><strong style="font-size:18px">Demo-Guthaben hinzufügen</strong><span style="color:var(--muted2,#55504d);line-height:1.45">USDT, BTC, ETH und weitere Demo-Währungen in beliebiger Höhe.</span></div>
+        </div>
+        <div style="padding:28px;display:grid;grid-template-columns:56px 1fr;gap:16px">
+          <span style="font-size:32px;font-weight:800;color:#ec3013;line-height:1">03</span>
+          <div style="display:flex;flex-direction:column;gap:6px"><strong style="font-size:18px">Handel simulieren</strong><span style="color:var(--muted2,#55504d);line-height:1.45">Kaufen, verkaufen, übertragen – mit fiktiven Beispielkursen.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom:2px solid var(--ink,#201e1d);background:var(--surface,#eae9e9)">
+    <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+      <sc-for list="{{ tickerCoins }}" as="c" hint-placeholder-count="4">
+        <button onClick="{{ c.onTrade }}" style="background:none;border:0;border-right:2px solid var(--ink,#201e1d);padding:20px 20px 20px 0;display:flex;flex-direction:column;gap:6px;text-align:left;cursor:pointer;color:var(--ink,#201e1d)" style-hover="background:var(--hover,#e0dedd)">
+          <span style="font-size:13px;font-weight:600;padding-left:4px">{{ c.sym }}/USDT</span>
+          <span style="font-size:22px;font-weight:800;padding-left:4px">{{ c.priceStr }}</span>
+          <span style="font-size:14px;font-weight:600;color:{{ c.color }};padding-left:4px">{{ c.chgStr }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </section>
+
+  <section>
+    <div style="max-width:1280px;margin:0 auto;padding:48px clamp(16px,4vw,32px) 64px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h2 style="margin:0;font-size:clamp(28px,3.5vw,40px);font-weight:800;letter-spacing:-0.02em">Marktübersicht</h2>
+          <span style="font-size:14px;color:var(--muted2,#55504d)">Fiktive Beispielkurse in USDT, simuliert – keine Live-Daten.</span>
+        </div>
+        <button onClick="{{ goMarkets }}" style="background:none;border:0;border-bottom:2px solid var(--ink,#201e1d);padding:4px 0;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d)" style-hover="color:#ec3013;border-color:#ec3013">Alle Märkte →</button>
+      </div>
+      <div style="border-top:2px solid var(--ink,#201e1d)">
+        <div style="display:grid;grid-template-columns:{{ mCols }};gap:12px;padding:12px 0;border-bottom:2px solid var(--ink,#201e1d);font-size:12px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">
+          <span>PAAR</span><span style="text-align:right">KURS</span><span style="text-align:right">24H</span>
+          <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}"><span style="text-align:right">VOLUMEN 24H</span></sc-if>
+          <span></span>
+        </div>
+        <sc-for list="{{ homeCoins }}" as="c" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:{{ mCols }};gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line,#cfccca)">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0">
+              <span style="width:32px;height:32px;flex:none;background:var(--ink,#201e1d);color:var(--bg,#f3f2f2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">{{ c.short }}</span>
+              <div style="display:flex;flex-direction:column;min-width:0"><strong style="font-size:15px">{{ c.sym }}<span style="color:#8a8583;font-weight:400">/USDT</span></strong><span style="font-size:13px;color:var(--muted2,#55504d)">{{ c.name }}</span></div>
+            </div>
+            <span style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ c.priceStr }}</span>
+            <span style="text-align:right;font-weight:600;color:{{ c.color }};font-variant-numeric:tabular-nums">{{ c.chgStr }}</span>
+            <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}"><span style="text-align:right;color:var(--muted2,#55504d);font-variant-numeric:tabular-nums">{{ c.vol }}</span></sc-if>
+            <div style="display:flex;justify-content:flex-end"><button onClick="{{ c.onTrade }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:6px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:#ec3013;border-color:#ec3013;color:#ffffff">Handeln</button></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+</sc-if>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+  <section style="border-bottom:2px solid var(--ink,#201e1d)">
+    <div style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))">
+      <div style="background:#ec3013;color:#ffffff;padding:clamp(32px,6vw,72px) clamp(20px,4vw,48px);display:flex;flex-direction:column;justify-content:space-between;gap:40px;min-height:clamp(240px,40vw,560px)">
+        <span style="font-size:13px;font-weight:800;letter-spacing:0.1em">KRYO · DEMO-ZUGANG</span>
+        <h1 style="margin:0;font-size:clamp(40px,6vw,80px);line-height:0.95;font-weight:800;letter-spacing:-0.03em">Nur ein Name. Sonst nichts.</h1>
+        <span style="font-size:16px;line-height:1.5;max-width:420px">Diese Anmeldung ist eine Simulation. Es gibt kein Konto auf einem Server und keine Verbindung zu einer echten Börse.</span>
+      </div>
+      <div style="padding:clamp(32px,6vw,72px) clamp(20px,4vw,48px);display:flex;flex-direction:column;gap:28px;max-width:560px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h2 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.02em">Anmelden</h2>
+          <span style="color:var(--muted2,#55504d);font-size:15px">Wähle einen frei erfundenen Demo-Namen.</span>
+        </div>
+        <div style="display:flex;border-bottom:2px solid var(--ink,#201e1d)">
+          <span style="padding:10px 0;margin-right:24px;border-bottom:3px solid #ec3013;margin-bottom:-2px;font-weight:600">Demo-Name</span>
+          <span style="padding:10px 0;color:#8a8583;font-weight:600">E-Mail / Telefon – in der Demo deaktiviert</span>
+        </div>
+        <form onSubmit="{{ submitLogin }}" style="display:flex;flex-direction:column;gap:16px">
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">DEMO-NAME</span>
+            <input value="{{ loginName }}" onChange="{{ onLoginName }}" maxLength="24" autoComplete="off" placeholder="z. B. Satoshi Demo" style="height:52px;padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:17px;color:var(--ink,#201e1d);border-radius:0"></input>
+          </label>
+          <sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}"><span style="color:var(--down,#a8200b);font-size:14px;font-weight:600">{{ loginErr }}</span></sc-if>
+          <div style="background:var(--surface,#eae9e9);padding:14px 16px;font-size:14px;line-height:1.5;color:var(--muted,#3d3a38)">Kein Passwort, keine E-Mail, keine Telefonnummer, kein Bestätigungscode. Der Name wird nur in diesem Browser gespeichert.</div>
+          <button type="submit" style="display:flex;justify-content:space-between;align-items:center;height:52px;background:#ec3013;border:0;padding:0 18px;cursor:pointer;font-size:16px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c"><span>Demo starten</span><span>→</span></button>
+        </form>
+        <sc-if value="{{ hasProfiles }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:13px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">GESPEICHERTE DEMO-PROFILE</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ profileList }}" as="p" hint-placeholder-count="0">
+                <button onClick="{{ p.onPick }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:6px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">{{ p.name }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </section>
+</sc-if>
+
+<sc-if value="{{ isWallet }}" hint-placeholder-val="{{ false }}">
+  <section style="border-bottom:2px solid var(--ink,#201e1d)">
+    <div style="max-width:1280px;margin:0 auto;padding:40px clamp(16px,4vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:32px;align-items:end">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font-size:13px;font-weight:800;letter-spacing:0.08em;color:var(--muted2,#55504d)">GESAMTGUTHABEN (DEMO) · {{ userName }}</span>
+        <span style="font-size:clamp(40px,6vw,68px);font-weight:800;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums">{{ totalStr }}</span>
+        <span style="font-size:15px;color:var(--muted2,#55504d)">≈ {{ totalUsdtStr }} USDT · Spielgeld, nicht auszahlbar</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+        <button onClick="{{ openAdd }}" style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;background:#ec3013;border:0;padding:16px 18px;cursor:pointer;font-size:16px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c"><span>Demo-Guthaben hinzufügen</span><span>+</span></button>
+        <button onClick="{{ goTradeBuy }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:12px 14px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">Kaufen</button>
+        <button onClick="{{ goTradeSell }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:12px 14px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">Verkaufen</button>
+        <button onClick="{{ openTransfer }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:12px 14px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--ink,#201e1d);color:var(--bg,#f3f2f2)">Übertragen</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:0 48px">
+      <div style="padding:32px 0;display:flex;flex-direction:column;gap:16px">
+        <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.02em">Assets</h2>
+        <div style="border-top:2px solid var(--ink,#201e1d)">
+          <sc-if value="{{ noAssets }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:32px 0;display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+              <span style="color:var(--muted2,#55504d)">Noch kein Demo-Guthaben vorhanden.</span>
+              <button onClick="{{ openAdd }}" style="background:none;border:0;border-bottom:2px solid #ec3013;padding:2px 0;cursor:pointer;font-size:15px;font-weight:600;color:var(--down,#a8200b)">Demo-Guthaben hinzufügen →</button>
+            </div>
+          </sc-if>
+          <sc-for list="{{ assetRows }}" as="a" hint-placeholder-count="0">
+            <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line,#cfccca)">
+              <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                <span style="width:32px;height:32px;flex:none;background:var(--ink,#201e1d);color:var(--bg,#f3f2f2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">{{ a.short }}</span>
+                <div style="display:flex;flex-direction:column;min-width:0"><strong>{{ a.sym }}</strong><span style="font-size:13px;color:var(--muted2,#55504d)">{{ a.name }}</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font-weight:600;font-variant-numeric:tabular-nums">{{ a.qtyStr }}</span><span style="font-size:13px;color:var(--muted2,#55504d)">Bestand</span></div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <span style="font-weight:600;font-variant-numeric:tabular-nums">{{ a.valueStr }}</span>
+                <div style="width:100%;max-width:120px;height:4px;background:var(--hover,#e0dedd)"><div style="height:4px;background:#ec3013;width:{{ a.share }}"></div></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:32px 0;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+          <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.02em">Transaktionsverlauf</h2>
+          <span style="font-size:13px;color:var(--muted2,#55504d)">{{ txCountStr }}</span>
+        </div>
+        <div style="border-top:2px solid var(--ink,#201e1d)">
+          <sc-if value="{{ noTxs }}" hint-placeholder-val="{{ true }}"><div style="padding:32px 0;color:var(--muted2,#55504d)">Noch keine Demo-Transaktionen.</div></sc-if>
+          <sc-for list="{{ txRows }}" as="t" hint-placeholder-count="0">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:14px 0;border-bottom:1px solid var(--line,#cfccca)">
+              <strong style="font-size:15px">{{ t.type }}</strong>
+              <span style="font-weight:600;text-align:right;color:{{ t.color }};font-variant-numeric:tabular-nums">{{ t.amountStr }}</span>
+              <span style="font-size:13px;color:var(--muted2,#55504d)">{{ t.detail }}</span>
+              <span style="font-size:13px;color:var(--muted2,#55504d);text-align:right">{{ t.timeStr }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-top:2px solid var(--ink,#201e1d);background:var(--surface,#eae9e9)">
+    <div style="max-width:1280px;margin:0 auto;padding:24px clamp(16px,4vw,32px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
+      <span style="font-size:14px;color:var(--muted,#3d3a38);max-width:640px">Alle Demo-Daten liegen im localStorage dieses Browsers. Zurücksetzen löscht alle Demo-Profile, Guthaben und Transaktionen.</span>
+      <button onClick="{{ openReset }}" style="background:none;border:2px solid var(--down,#a8200b);padding:10px 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--down,#a8200b);text-align:left" style-hover="background:var(--down,#a8200b);color:#ffffff">Alle Demo-Daten zurücksetzen</button>
+    </div>
+  </section>
+</sc-if>
+
+<sc-if value="{{ isMarkets }}" hint-placeholder-val="{{ false }}">
+  <section>
+    <div style="max-width:1280px;margin:0 auto;padding:40px clamp(16px,4vw,32px) 64px;display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h1 style="margin:0;font-size:clamp(32px,4.5vw,52px);font-weight:800;letter-spacing:-0.03em">Märkte</h1>
+          <span style="font-size:14px;color:var(--muted2,#55504d)">Spot · fiktive Beispielkurse in USDT</span>
+        </div>
+        <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Coin suchen" style="height:44px;width:min(100%,280px);padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:15px;color:var(--ink,#201e1d);border-radius:0"></input>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));border-top:2px solid var(--ink,#201e1d);border-bottom:2px solid var(--ink,#201e1d)">
+        <div style="padding:18px 18px 18px 0;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">TOP-GEWINNER</span><strong style="font-size:20px">{{ topGainer }}</strong></div>
+        <div style="padding:18px 18px 18px 0;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">TOP-VERLIERER</span><strong style="font-size:20px">{{ topLoser }}</strong></div>
+        <div style="padding:18px 18px 18px 0;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">GELISTETE PAARE</span><strong style="font-size:20px">{{ pairCount }}</strong></div>
+      </div>
+      <div>
+        <div style="display:grid;grid-template-columns:{{ mCols }};gap:12px;padding:12px 0;border-bottom:2px solid var(--ink,#201e1d);font-size:12px;font-weight:800;letter-spacing:0.06em;color:var(--muted2,#55504d)">
+          <span>PAAR</span><span style="text-align:right">KURS</span><span style="text-align:right">24H</span>
+          <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}"><span style="text-align:right">VOLUMEN 24H</span></sc-if>
+          <span></span>
+        </div>
+        <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}"><div style="padding:24px 0;color:var(--muted2,#55504d)">Kein Treffer.</div></sc-if>
+        <sc-for list="{{ marketCoins }}" as="c" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:{{ mCols }};gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line,#cfccca)">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0">
+              <span style="width:32px;height:32px;flex:none;background:var(--ink,#201e1d);color:var(--bg,#f3f2f2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">{{ c.short }}</span>
+              <div style="display:flex;flex-direction:column;min-width:0"><strong style="font-size:15px">{{ c.sym }}<span style="color:#8a8583;font-weight:400">/USDT</span></strong><span style="font-size:13px;color:var(--muted2,#55504d)">{{ c.name }}</span></div>
+            </div>
+            <span style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ c.priceStr }}</span>
+            <span style="text-align:right;font-weight:600;color:{{ c.color }};font-variant-numeric:tabular-nums">{{ c.chgStr }}</span>
+            <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}"><span style="text-align:right;color:var(--muted2,#55504d);font-variant-numeric:tabular-nums">{{ c.vol }}</span></sc-if>
+            <div style="display:flex;justify-content:flex-end"><button onClick="{{ c.onTrade }}" style="background:none;border:2px solid var(--ink,#201e1d);padding:6px 12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:#ec3013;border-color:#ec3013;color:#ffffff">Handeln</button></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+</sc-if>
+
+<sc-if value="{{ isTrade }}" hint-placeholder-val="{{ false }}">
+  <section style="border-bottom:2px solid var(--ink,#201e1d)">
+    <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:flex;gap:4px;overflow-x:auto">
+      <sc-for list="{{ pairTabs }}" as="p" hint-placeholder-count="6">
+        <button onClick="{{ p.onPick }}" style="background:none;border:0;border-bottom:3px solid {{ p.border }};padding:14px 12px 11px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink,#201e1d);white-space:nowrap" style-hover="color:#ec3013">{{ p.sym }}/USDT</button>
+      </sc-for>
+    </div>
+  </section>
+  <section>
+    <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:grid;grid-template-columns:{{ tradeCols }}">
+      <div style="padding:28px 0;display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 24px">
+          <h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em">{{ pairSym }}/USDT</h1>
+          <span style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ pairColor }}">{{ pairPrice }}</span>
+          <span style="font-size:15px;font-weight:600;color:{{ pairColor }}">{{ pairChg }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));border-top:2px solid var(--ink,#201e1d);border-bottom:2px solid var(--ink,#201e1d)">
+          <div style="padding:12px 12px 12px 0;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:var(--muted2,#55504d)">24h Hoch</span><strong style="font-variant-numeric:tabular-nums">{{ pairHigh }}</strong></div>
+          <div style="padding:12px 12px 12px 0;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:var(--muted2,#55504d)">24h Tief</span><strong style="font-variant-numeric:tabular-nums">{{ pairLow }}</strong></div>
+          <div style="padding:12px 12px 12px 0;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:var(--muted2,#55504d)">Volumen 24h</span><strong>{{ pairVol }}</strong></div>
+        </div>
+        <div style="position:relative;height:clamp(220px,32vw,380px);background:var(--field,#ffffff);border:2px solid var(--ink,#201e1d)">
+          <svg viewBox="0 0 600 200" preserveAspectRatio="none" style="position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);overflow:visible">
+            <line x1="0" y1="50" x2="600" y2="50" stroke="var(--hover,#e0dedd)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="100" x2="600" y2="100" stroke="var(--hover,#e0dedd)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="150" x2="600" y2="150" stroke="var(--hover,#e0dedd)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+            <polyline points="{{ chartPoints }}" fill="none" stroke="{{ pairColor }}" stroke-width="2" vector-effect="non-scaling-stroke"></polyline>
+          </svg>
+          <span style="position:absolute;left:12px;top:10px;font-size:12px;font-weight:600;color:var(--muted2,#55504d);background:var(--field,#ffffff)">Simulierter Kursverlauf · letzte 60 Ticks</span>
+        </div>
+      </div>
+
+      <div style="padding:28px 0 40px;display:flex;flex-direction:column;gap:16px;border-left:{{ formBorder }};padding-left:{{ formPad }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;border:2px solid var(--ink,#201e1d)">
+          <button onClick="{{ setBuy }}" style="border:0;padding:12px 14px;cursor:pointer;font-size:15px;font-weight:600;text-align:left;background:{{ buyBg }};color:{{ buyFg }}">Kaufen</button>
+          <button onClick="{{ setSell }}" style="border:0;padding:12px 14px;cursor:pointer;font-size:15px;font-weight:600;text-align:left;background:{{ sellBg }};color:{{ sellFg }}">Verkaufen</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--muted2,#55504d)">Verfügbar</span><strong style="font-variant-numeric:tabular-nums">{{ availStr }}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--muted2,#55504d)">Preis (Market)</span><strong style="font-variant-numeric:tabular-nums">{{ pairPrice }} USDT</strong></div>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">MENGE ({{ pairSym }})</span>
+          <input value="{{ qty }}" onChange="{{ onQty }}" inputMode="decimal" placeholder="0,00" style="height:48px;padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:17px;color:var(--ink,#201e1d);border-radius:0;font-variant-numeric:tabular-nums"></input>
+        </label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <sc-for list="{{ pctButtons }}" as="b" hint-placeholder-count="4">
+            <button onClick="{{ b.onClick }}" style="background:var(--surface,#eae9e9);border:0;padding:8px 0;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink,#201e1d)" style-hover="background:var(--hover,#e0dedd)">{{ b.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;border-top:2px solid var(--ink,#201e1d);padding-top:12px"><span>Gesamt</span><strong style="font-variant-numeric:tabular-nums">{{ totalTradeStr }} USDT</strong></div>
+        <sc-if value="{{ tradeErr }}" hint-placeholder-val="{{ false }}"><span style="color:var(--down,#a8200b);font-size:14px;font-weight:600">{{ tradeErr }}</span></sc-if>
+        <button onClick="{{ submitTrade }}" style="display:flex;justify-content:space-between;align-items:center;height:52px;border:0;padding:0 18px;cursor:pointer;font-size:16px;font-weight:600;text-align:left;background:{{ submitBg }};color:#ffffff"><span>{{ submitLabel }}</span><span>→</span></button>
+        <span style="font-size:13px;color:var(--muted2,#55504d);line-height:1.45">Simulation. Es wird kein echtes Geld und keine echte Kryptowährung bewegt.</span>
+      </div>
+    </div>
+  </section>
+</sc-if>
+
+</main>
+
+<footer style="border-top:2px solid var(--ink,#201e1d);background:#201e1d;color:#c9c5c3">
+  <div style="max-width:1280px;margin:0 auto;padding:28px clamp(16px,4vw,32px);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:13px;line-height:1.5">
+    <span style="color:#f3f2f2;font-weight:800">KRYO DEMO</span>
+    <span style="max-width:720px">Fiktive Design-Demo. Kein Finanzdienstleister, keine echten Konten, keine Wallet-Verbindung, keine Zahlungsabwicklung. Alle Kurse sind Beispieldaten.</span>
+  </div>
+</footer>
+
+<sc-if value="{{ showAdd }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModal }}" style="position:fixed;inset:0;z-index:80;background:rgba(32,30,29,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <form onClick="{{ stop }}" onSubmit="{{ submitAdd }}" style="width:min(100%,480px);background:var(--bg,#f3f2f2);border:2px solid var(--ink,#201e1d);box-shadow:0 24px 48px rgba(32,30,29,0.25);display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:2px solid var(--ink,#201e1d)"><strong style="font-size:20px">Demo-Guthaben hinzufügen</strong><button type="button" onClick="{{ closeModal }}" style="background:none;border:0;font-size:22px;cursor:pointer;color:var(--ink,#201e1d);padding:0 4px">×</button></div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#ec3013;color:#ffffff;padding:12px 14px;font-size:14px;font-weight:600;line-height:1.45">Nur Demo: Es wird kein echtes Geld eingezahlt und keine echte Kryptowährung gutgeschrieben.</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">DEMO-WÄHRUNG</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px">
+            <sc-for list="{{ addCurs }}" as="c" hint-placeholder-count="7">
+              <button type="button" onClick="{{ c.onPick }}" style="border:2px solid var(--ink,#201e1d);padding:8px 0;cursor:pointer;font-size:14px;font-weight:600;background:{{ c.bg }};color:{{ c.fg }}">{{ c.sym }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">BETRAG ({{ addCur }})</span>
+          <input value="{{ addAmount }}" onChange="{{ onAddAmount }}" inputMode="decimal" autoFocus="{{ true }}" placeholder="z. B. 1000" style="height:48px;padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:17px;color:var(--ink,#201e1d);border-radius:0"></input>
+        </label>
+        <sc-if value="{{ addErr }}" hint-placeholder-val="{{ false }}"><span style="color:var(--down,#a8200b);font-size:14px;font-weight:600">{{ addErr }}</span></sc-if>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid var(--ink,#201e1d)">
+        <button type="button" onClick="{{ closeModal }}" style="background:none;border:0;border-right:2px solid var(--ink,#201e1d);padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--surface,#eae9e9)">Abbrechen</button>
+        <button type="submit" style="background:#ec3013;border:0;padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c">Hinzufügen</button>
+      </div>
+    </form>
+  </div>
+</sc-if>
+
+<sc-if value="{{ showTransfer }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModal }}" style="position:fixed;inset:0;z-index:80;background:rgba(32,30,29,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <form onClick="{{ stop }}" onSubmit="{{ submitTransfer }}" style="width:min(100%,480px);background:var(--bg,#f3f2f2);border:2px solid var(--ink,#201e1d);box-shadow:0 24px 48px rgba(32,30,29,0.25);display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:2px solid var(--ink,#201e1d)"><strong style="font-size:20px">Demo-Übertragung</strong><button type="button" onClick="{{ closeModal }}" style="background:none;border:0;font-size:22px;cursor:pointer;color:var(--ink,#201e1d);padding:0 4px">×</button></div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#ec3013;color:#ffffff;padding:12px 14px;font-size:14px;font-weight:600;line-height:1.45">Simulation: Es wird nichts an eine echte Adresse gesendet. Der Betrag wird nur aus deinem Demo-Guthaben entfernt.</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">DEMO-WÄHRUNG</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px">
+            <sc-for list="{{ trCurs }}" as="c" hint-placeholder-count="7">
+              <button type="button" onClick="{{ c.onPick }}" style="border:2px solid var(--ink,#201e1d);padding:8px 0;cursor:pointer;font-size:14px;font-weight:600;background:{{ c.bg }};color:{{ c.fg }}">{{ c.sym }}</button>
+            </sc-for>
+          </div>
+          <span style="font-size:13px;color:var(--muted2,#55504d)">Verfügbar: {{ trAvail }}</span>
+        </div>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">EMPFÄNGER (DEMO-NAME)</span>
+          <input value="{{ trTo }}" onChange="{{ onTrTo }}" maxLength="24" placeholder="z. B. Demo-Freund" style="height:48px;padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:17px;color:var(--ink,#201e1d);border-radius:0"></input>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:13px;font-weight:800;letter-spacing:0.06em">BETRAG ({{ trCur }})</span>
+          <input value="{{ trAmount }}" onChange="{{ onTrAmount }}" inputMode="decimal" placeholder="0,00" style="height:48px;padding:0 14px;border:2px solid var(--ink,#201e1d);background:var(--field,#ffffff);font-size:17px;color:var(--ink,#201e1d);border-radius:0"></input>
+        </label>
+        <sc-if value="{{ trErr }}" hint-placeholder-val="{{ false }}"><span style="color:var(--down,#a8200b);font-size:14px;font-weight:600">{{ trErr }}</span></sc-if>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid var(--ink,#201e1d)">
+        <button type="button" onClick="{{ closeModal }}" style="background:none;border:0;border-right:2px solid var(--ink,#201e1d);padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--surface,#eae9e9)">Abbrechen</button>
+        <button type="submit" style="background:#ec3013;border:0;padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c">Simuliert übertragen</button>
+      </div>
+    </form>
+  </div>
+</sc-if>
+
+<sc-if value="{{ showConfirm }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModal }}" style="position:fixed;inset:0;z-index:80;background:rgba(32,30,29,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div onClick="{{ stop }}" style="width:min(100%,460px);background:var(--bg,#f3f2f2);border:2px solid var(--ink,#201e1d);box-shadow:0 24px 48px rgba(32,30,29,0.25);display:flex;flex-direction:column">
+      <div style="padding:18px 20px;border-bottom:2px solid var(--ink,#201e1d)"><strong style="font-size:20px">{{ confirmTitle }}</strong></div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="background:#ec3013;color:#ffffff;padding:12px 14px;font-size:14px;font-weight:600;line-height:1.45">Es wird kein echtes Geld und keine echte Kryptowährung bewegt. Diese Aktion ändert nur Demo-Daten in deinem Browser.</div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ confirmLines }}" as="l" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line,#cfccca);font-size:15px"><span style="color:var(--muted2,#55504d)">{{ l.k }}</span><strong style="text-align:right;font-variant-numeric:tabular-nums">{{ l.v }}</strong></div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid var(--ink,#201e1d)">
+        <button onClick="{{ closeModal }}" style="background:none;border:0;border-right:2px solid var(--ink,#201e1d);padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:var(--ink,#201e1d);text-align:left" style-hover="background:var(--surface,#eae9e9)">Abbrechen</button>
+        <button onClick="{{ runConfirm }}" style="background:#ec3013;border:0;padding:16px 20px;cursor:pointer;font-size:15px;font-weight:600;color:#ffffff;text-align:left" style-hover="background:#c9260c">{{ confirmLabel }}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;background:var(--ink,#201e1d);color:var(--bg,#f3f2f2);padding:14px 18px;font-size:15px;font-weight:600;border-left:6px solid #ec3013;max-width:calc(100% - 32px)">{{ toast }}</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tickPrices&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;currency&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;USD&quot;,&quot;EUR&quot;],&quot;default&quot;:&quot;USD&quot;,&quot;tsType&quot;:&quot;'USD' | 'EUR'&quot;}}">
+const KEY = 'kryo-demo:v1';
+const COINS = [
+  { sym: 'BTC', name: 'Bitcoin', price: 64250, chg: 2.14, vol: '1,82 Mrd. USDT' },
+  { sym: 'ETH', name: 'Ethereum', price: 3120.5, chg: -0.86, vol: '912 Mio. USDT' },
+  { sym: 'SOL', name: 'Solana', price: 148.22, chg: 4.37, vol: '421 Mio. USDT' },
+  { sym: 'BNB', name: 'BNB', price: 578.4, chg: 0.45, vol: '198 Mio. USDT' },
+  { sym: 'XRP', name: 'XRP', price: 0.5234, chg: -1.72, vol: '265 Mio. USDT' },
+  { sym: 'DOGE', name: 'Dogecoin', price: 0.1236, chg: 6.02, vol: '143 Mio. USDT' },
+  { sym: 'ADA', name: 'Cardano', price: 0.3812, chg: -2.41, vol: '88 Mio. USDT' },
+  { sym: 'LINK', name: 'Chainlink', price: 13.46, chg: 1.18, vol: '64 Mio. USDT' }
+];
+const ASSETS = ['USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'LINK'];
+const NAMES = { USDT: 'Tether (Demo)' };
+COINS.forEach(c => { NAMES[c.sym] = c.name + ' (Demo)'; });
+const GREEN = 'var(--up,#1f7a3e)', RED = 'var(--down,#a8200b)';
+
+const nf = (v, d) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtPrice = p => nf(p, p < 1 ? 4 : 2);
+const fmtQty = q => q.toLocaleString('de-DE', { maximumFractionDigits: 8 });
+const parseNum = s => parseFloat(String(s).trim().replace(/\./g, '').replace(',', '.'));
+const parseInput = s => { const t = String(s).trim(); return t.includes(',') ? parseNum(t) : parseFloat(t); };
+const emptyBal = () => { const b = {}; ASSETS.forEach(a => { b[a] = 0; }); return b; };
+function seedHist(p) {
+  const a = []; let v = p;
+  for (let i = 0; i < 60; i++) { v *= 1 + Math.sin(i / 6) * 0.0015 + (Math.random() - 0.5) * 0.008; a.push(v); }
+  const f = p / a[a.length - 1];
+  return a.map(x => x * f);
+}
+function loadStore() {
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.profiles) return s; } catch (e) {}
+  return { session: null, profiles: {} };
+}
+function initState() {
+  const prices = {}, hist = {};
+  COINS.forEach(c => { prices[c.sym] = c.price; hist[c.sym] = seedHist(c.price); });
+  return { page: 'home', user: null, balances: emptyBal(), txs: [], prices, hist, modal: null, pending: null,
+    loginName: '', loginErr: '', addAmount: '', addCur: 'USDT', addErr: '', trAmount: '', trCur: 'USDT', trTo: '', trErr: '',
+    pair: 'BTC', side: 'buy', qty: '', tradeErr: '', query: '', toast: '', w: 1280, redirect: null, profileNames: [] };
+}
+const THEMES = {
+  light: { bg: '#f3f2f2', surface: '#eae9e9', hover: '#e0dedd', ink: '#201e1d', muted: '#3d3a38', muted2: '#55504d', line: '#cfccca', down: '#a8200b', up: '#1f7a3e', field: '#ffffff' },
+  dark: { bg: '#141312', surface: '#1f1d1c', hover: '#2a2826', ink: '#efedec', muted: '#c9c5c3', muted2: '#a9a4a1', line: '#3a3735', down: '#ff6a52', up: '#4cc27a', field: '#1a1918' }
+};
+const PAGES = ['home', 'login', 'markets', 'trade', 'wallet'];
+
+class Component extends DCLogic {
+  state = initState();
+
+  componentDidMount() {
+    this.store = loadStore();
+    const s = this.store.session && this.store.profiles[this.store.session];
+    let theme = 'light';
+    try { theme = localStorage.getItem(KEY + ':theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    const patch = { w: window.innerWidth, profileNames: Object.keys(this.store.profiles), theme };
+    if (s) Object.assign(patch, { user: this.store.session, balances: { ...emptyBal(), ...s.balances }, txs: s.txs || [] });
+    this.setState(patch, () => this.fromHash());
+    this.onResize = () => this.setState({ w: window.innerWidth });
+    this.onHash = () => this.fromHash();
+    window.addEventListener('resize', this.onResize);
+    window.addEventListener('hashchange', this.onHash);
+    this.timer = setInterval(() => this.tick(), 2500);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer); clearTimeout(this.toastT);
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('hashchange', this.onHash);
+  }
+  componentDidUpdate(pp, ps) {
+    const s = this.state;
+    if (!this.store) return;
+    if (ps.user !== s.user || ps.balances !== s.balances || ps.txs !== s.txs) {
+      if (s.user) this.store.profiles[s.user] = { balances: s.balances, txs: s.txs, updated: Date.now() };
+      this.store.session = s.user;
+      try { localStorage.setItem(KEY, JSON.stringify(this.store)); } catch (e) {}
+    }
+  }
+  fromHash() {
+    const h = (location.hash || '').replace('#', '');
+    const [page, pair] = h.split('/');
+    if (!PAGES.includes(page)) { if (this.state.page !== 'home') this.setState({ page: 'home' }); return; }
+    if (page === 'wallet' && !this.state.user) { this.setState({ page: 'login', redirect: 'wallet' }); return; }
+    const patch = { page };
+    if (page === 'trade' && pair && COINS.find(c => c.sym === pair)) patch.pair = pair;
+    this.setState(patch);
+  }
+  go(page, extra) {
+    const patch = { ...(extra || {}), modal: null };
+    if (page === 'wallet' && !this.state.user) { patch.page = 'login'; patch.redirect = 'wallet'; }
+    else patch.page = page;
+    this.setState(patch);
+    const pair = (extra && extra.pair) || this.state.pair;
+    const h = patch.page === 'trade' ? 'trade/' + pair : patch.page;
+    if (location.hash.replace('#', '') !== h) history.pushState(null, '', '#' + h);
+    window.scrollTo(0, 0);
+  }
+  tick() {
+    if (this.props.tickPrices !== true) return;
+    this.setState(s => {
+      const prices = {}, hist = {};
+      COINS.forEach(c => {
+        const p = s.prices[c.sym] * (1 + (Math.random() - 0.5) * 0.003);
+        prices[c.sym] = p; hist[c.sym] = s.hist[c.sym].slice(-59).concat(p);
+      });
+      return { prices, hist };
+    });
+  }
+  flash(msg) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: msg });
+    this.toastT = setTimeout(() => this.setState({ toast: '' }), 3200);
+  }
+  money(v) {
+    const eur = this.props.currency === 'EUR';
+    return (eur ? v * 0.92 : v).toLocaleString('de-DE', { style: 'currency', currency: eur ? 'EUR' : 'USD' });
+  }
+  price(sym) { return sym === 'USDT' ? 1 : this.state.prices[sym]; }
+  addTx(tx, balances) {
+    this.setState(s => ({ balances, txs: [{ id: Date.now() + Math.random(), time: Date.now(), ...tx }].concat(s.txs).slice(0, 200) }));
+  }
+  login(name) {
+    const n = (name || '').trim();
+    if (n.length < 2) return this.setState({ loginErr: 'Bitte mindestens 2 Zeichen eingeben.' });
+    if (!/^[\p{L}\p{N} ._-]+$/u.test(n)) return this.setState({ loginErr: 'Nur Buchstaben, Zahlen, Leerzeichen, Punkt, - und _.' });
+    const p = this.store.profiles[n];
+    const target = this.state.redirect || 'wallet';
+    this.setState({ user: n, balances: p ? { ...emptyBal(), ...p.balances } : emptyBal(), txs: p ? p.txs || [] : [], loginErr: '', loginName: '', redirect: null,
+      profileNames: Array.from(new Set(Object.keys(this.store.profiles).concat(n))) }, () => this.go(target));
+    this.flash(p ? 'Willkommen zurück, ' + n + ' (Demo)' : 'Demo-Profil „' + n + '“ angelegt');
+  }
+  isValidAmt(v) { return isFinite(v) && v > 0; }
+
+  renderVals() {
+    const s = this.state;
+    const wide = s.w >= 760;
+    const coinView = c => {
+      const p = s.prices[c.sym];
+      const chg = c.chg + (p / c.price - 1) * 100;
+      return { ...c, short: c.sym.slice(0, 3), priceStr: fmtPrice(p), chg, chgStr: (chg >= 0 ? '+' : '') + nf(chg, 2) + ' %', color: chg >= 0 ? GREEN : RED,
+        onTrade: () => this.go('trade', { pair: c.sym, qty: '', tradeErr: '' }) };
+    };
+    const coins = COINS.map(coinView);
+    const q = s.query.trim().toLowerCase();
+    const marketCoins = coins.filter(c => !q || c.sym.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+    const sorted = coins.slice().sort((a, b) => b.chg - a.chg);
+
+    const total = ASSETS.reduce((t, a) => t + s.balances[a] * this.price(a), 0);
+    const assetRows = ASSETS.filter(a => s.balances[a] > 0).map(a => {
+      const v = s.balances[a] * this.price(a);
+      return { sym: a, short: a.slice(0, 3), name: NAMES[a], qtyStr: fmtQty(s.balances[a]), valueStr: this.money(v), v, share: (total ? v / total * 100 : 0).toFixed(1) + '%' };
+    }).sort((x, y) => y.v - x.v);
+    const txRows = s.txs.map(t => ({ ...t, amountStr: (t.amount >= 0 ? '+' : '−') + fmtQty(Math.abs(t.amount)) + ' ' + t.asset, color: t.amount >= 0 ? GREEN : 'var(--ink,#201e1d)',
+      timeStr: new Date(t.time).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) }));
+
+    const pc = coins.find(c => c.sym === s.pair) || coins[0];
+    const h = s.hist[pc.sym];
+    const min = Math.min(...h), max = Math.max(...h), rng = max - min || 1;
+    const chartPoints = h.map((v, i) => (i / (h.length - 1) * 600).toFixed(1) + ',' + (190 - (v - min) / rng * 180).toFixed(1)).join(' ');
+    const qtyNum = parseInput(s.qty);
+    const price = s.prices[pc.sym];
+    const tradeTotal = isFinite(qtyNum) ? qtyNum * price : 0;
+    const buying = s.side === 'buy';
+    const availStr = s.user ? (buying ? fmtQty(s.balances.USDT) + ' USDT' : fmtQty(s.balances[pc.sym]) + ' ' + pc.sym) : 'Anmeldung nötig';
+
+    const curPicker = (key, cur) => ASSETS.map(a => ({ sym: a, bg: a === cur ? 'var(--ink,#201e1d)' : 'transparent', fg: a === cur ? 'var(--bg,#f3f2f2)' : 'var(--ink,#201e1d)',
+      onPick: () => this.setState({ [key]: a }) }));
+    const pending = s.pending || {};
+    const navDef = [['Start', 'home'], ['Märkte', 'markets'], ['Handel', 'trade'], ['Wallet', 'wallet']];
+
+    const dark = s.theme === 'dark';
+    return {
+      th: THEMES[dark ? 'dark' : 'light'], themeLabel: dark ? 'Hell' : 'Dunkel',
+      toggleTheme: () => { const t = dark ? 'light' : 'dark'; this.setState({ theme: t }); try { localStorage.setItem(KEY + ':theme', t); } catch (e) {} },
+      isWide: wide,
+      linksOrder: wide ? 0 : 3, linksBasis: wide ? 'auto' : '100%',
+      navItems: navDef.map(([label, key]) => ({ label, border: s.page === key ? '#ec3013' : 'transparent', onClick: () => this.go(key) })),
+      loggedIn: !!s.user, loggedOut: !s.user, userName: s.user || '', userInitial: (s.user || '?').slice(0, 1).toUpperCase(),
+      goHome: () => this.go('home'), goLogin: () => this.go('login'), goMarkets: () => this.go('markets'), goWallet: () => this.go('wallet'),
+      goPrimary: () => this.go(s.user ? 'wallet' : 'login'), primaryCta: s.user ? 'Zur Demo-Wallet' : 'Demo-Konto starten',
+      logout: () => { this.setState({ user: null, balances: emptyBal(), txs: [], modal: null }); this.go('home'); this.flash('Abgemeldet. Demo-Daten bleiben gespeichert.'); },
+      isHome: s.page === 'home', isLogin: s.page === 'login', isWallet: s.page === 'wallet', isMarkets: s.page === 'markets', isTrade: s.page === 'trade',
+      tickerCoins: coins.slice(0, 4), homeCoins: coins.slice(0, 6), marketCoins, noResults: marketCoins.length === 0,
+      mCols: wide ? 'minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 110px' : 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,0.9fr) 88px',
+      topGainer: sorted[0].sym + '  ' + sorted[0].chgStr, topLoser: sorted[sorted.length - 1].sym + '  ' + sorted[sorted.length - 1].chgStr, pairCount: COINS.length + ' Spot-Paare',
+      query: s.query, onQuery: e => this.setState({ query: e.target.value }),
+
+      loginName: s.loginName, loginErr: s.loginErr,
+      onLoginName: e => this.setState({ loginName: e.target.value, loginErr: '' }),
+      submitLogin: e => { e.preventDefault(); this.login(s.loginName); },
+      hasProfiles: s.profileNames.length > 0,
+      profileList: s.profileNames.map(n => ({ name: n, onPick: () => this.login(n) })),
+
+      totalStr: this.money(total), totalUsdtStr: nf(total, 2),
+      noAssets: assetRows.length === 0, assetRows, txRows, noTxs: txRows.length === 0,
+      txCountStr: txRows.length + (txRows.length === 1 ? ' Eintrag' : ' Einträge'),
+      openAdd: () => this.setState({ modal: 'add', addAmount: '', addErr: '' }),
+      openTransfer: () => this.setState({ modal: 'transfer', trAmount: '', trTo: '', trErr: '' }),
+      openReset: () => this.setState({ modal: 'confirm', pending: {
+        title: 'Alle Demo-Daten zurücksetzen?', label: 'Zurücksetzen',
+        lines: [{ k: 'Profile', v: String(s.profileNames.length) }, { k: 'Transaktionen (aktuell)', v: String(s.txs.length) }, { k: 'Speicherort', v: 'localStorage · ' + KEY }],
+        run: () => { try { localStorage.removeItem(KEY); } catch (e) {} this.store = { session: null, profiles: {} };
+          this.setState({ user: null, balances: emptyBal(), txs: [], profileNames: [], modal: null, pending: null }, () => { localStorage.removeItem(KEY); });
+          this.go('home'); this.flash('Alle Demo-Daten wurden gelöscht.'); } } }),
+      goTradeBuy: () => this.go('trade', { side: 'buy', qty: '', tradeErr: '' }),
+      goTradeSell: () => this.go('trade', { side: 'sell', qty: '', tradeErr: '' }),
+
+      showAdd: s.modal === 'add', showTransfer: s.modal === 'transfer', showConfirm: s.modal === 'confirm',
+      closeModal: () => this.setState({ modal: null, pending: null }), stop: e => e.stopPropagation(),
+      addCurs: curPicker('addCur', s.addCur), addCur: s.addCur, addAmount: s.addAmount, addErr: s.addErr,
+      onAddAmount: e => this.setState({ addAmount: e.target.value, addErr: '' }),
+      submitAdd: e => {
+        e.preventDefault();
+        const v = parseInput(s.addAmount);
+        if (!this.isValidAmt(v)) return this.setState({ addErr: 'Bitte einen Betrag größer als 0 eingeben.' });
+        if (v * this.price(s.addCur) > 10000000) return this.setState({ addErr: 'Maximal 10 Mio. USD Gegenwert pro Aufladung.' });
+        const b = { ...s.balances, [s.addCur]: s.balances[s.addCur] + v };
+        this.addTx({ type: 'Demo-Einzahlung', asset: s.addCur, amount: v, detail: 'Spielgeld · keine echte Einzahlung' }, b);
+        this.setState({ modal: null });
+        this.flash('+' + fmtQty(v) + ' ' + s.addCur + ' Demo-Guthaben hinzugefügt');
+      },
+      trCurs: curPicker('trCur', s.trCur), trCur: s.trCur, trAmount: s.trAmount, trTo: s.trTo, trErr: s.trErr,
+      trAvail: fmtQty(s.balances[s.trCur]) + ' ' + s.trCur,
+      onTrAmount: e => this.setState({ trAmount: e.target.value, trErr: '' }),
+      onTrTo: e => this.setState({ trTo: e.target.value, trErr: '' }),
+      submitTransfer: e => {
+        e.preventDefault();
+        const v = parseInput(s.trAmount), to = s.trTo.trim();
+        if (to.length < 2) return this.setState({ trErr: 'Bitte einen Demo-Empfängernamen eingeben.' });
+        if (!this.isValidAmt(v)) return this.setState({ trErr: 'Bitte einen Betrag größer als 0 eingeben.' });
+        if (v > s.balances[s.trCur] + 1e-12) return this.setState({ trErr: 'Nicht genügend Demo-Guthaben.' });
+        const b = { ...s.balances, [s.trCur]: Math.max(0, s.balances[s.trCur] - v) };
+        this.addTx({ type: 'Übertragung (Simulation)', asset: s.trCur, amount: -v, detail: 'An Demo-Empfänger „' + to + '“' }, b);
+        this.setState({ modal: null });
+        this.flash('Simulierte Übertragung an ' + to + ' gebucht');
+      },
+      confirmTitle: pending.title, confirmLabel: pending.label, confirmLines: pending.lines || [],
+      runConfirm: () => pending.run && pending.run(),
+
+      pairTabs: coins.map(c => ({ sym: c.sym, border: c.sym === pc.sym ? '#ec3013' : 'transparent', onPick: () => this.go('trade', { pair: c.sym, qty: '', tradeErr: '' }) })),
+      tradeCols: wide ? 'minmax(0,2fr) minmax(300px,1fr)' : 'minmax(0,1fr)',
+      formBorder: wide ? '2px solid var(--ink,#201e1d)' : '0', formPad: wide ? '28px' : '0',
+      pairSym: pc.sym, pairPrice: pc.priceStr, pairChg: pc.chgStr, pairColor: pc.color,
+      pairHigh: fmtPrice(Math.max(max, price)), pairLow: fmtPrice(Math.min(min, price)), pairVol: pc.vol, chartPoints,
+      buyBg: buying ? GREEN : 'transparent', buyFg: buying ? '#ffffff' : 'var(--ink,#201e1d)',
+      sellBg: buying ? 'transparent' : RED, sellFg: buying ? 'var(--ink,#201e1d)' : '#ffffff',
+      setBuy: () => this.setState({ side: 'buy', tradeErr: '' }), setSell: () => this.setState({ side: 'sell', tradeErr: '' }),
+      availStr, qty: s.qty, onQty: e => this.setState({ qty: e.target.value, tradeErr: '' }),
+      pctButtons: [25, 50, 75, 100].map(p => ({ label: p + ' %', onClick: () => {
+        if (!s.user) return this.setState({ tradeErr: 'Bitte zuerst mit einem Demo-Namen anmelden.' });
+        const max = buying ? s.balances.USDT / price : s.balances[pc.sym];
+        const v = Math.floor(max * p / 100 * 1e6) / 1e6;
+        this.setState({ qty: v > 0 ? String(v).replace('.', ',') : '', tradeErr: v > 0 ? '' : 'Kein verfügbares Demo-Guthaben.' });
+      } })),
+      totalTradeStr: nf(tradeTotal, 2), tradeErr: s.tradeErr,
+      submitBg: buying ? GREEN : RED, submitLabel: (buying ? pc.sym + ' kaufen' : pc.sym + ' verkaufen') + ' (Demo)',
+      submitTrade: () => {
+        if (!s.user) { this.setState({ redirect: 'trade' }); return this.go('login', { redirect: 'trade' }); }
+        if (!this.isValidAmt(qtyNum)) return this.setState({ tradeErr: 'Bitte eine Menge größer als 0 eingeben.' });
+        if (buying && tradeTotal > s.balances.USDT + 1e-9) return this.setState({ tradeErr: 'Nicht genügend Demo-USDT. Lade in der Wallet Demo-Guthaben auf.' });
+        if (!buying && qtyNum > s.balances[pc.sym] + 1e-12) return this.setState({ tradeErr: 'Nicht genügend Demo-' + pc.sym + '.' });
+        const sym = pc.sym, p = price, qn = qtyNum, tot = tradeTotal;
+        this.setState({ modal: 'confirm', pending: {
+          title: (buying ? 'Kauf' : 'Verkauf') + ' simulieren', label: buying ? 'Demo-Kauf ausführen' : 'Demo-Verkauf ausführen',
+          lines: [{ k: 'Paar', v: sym + '/USDT' }, { k: 'Menge', v: fmtQty(qn) + ' ' + sym }, { k: 'Preis', v: fmtPrice(p) + ' USDT' }, { k: 'Gesamt', v: nf(tot, 2) + ' USDT' }],
+          run: () => {
+            const b = { ...this.state.balances };
+            if (buying) { b.USDT = Math.max(0, b.USDT - tot); b[sym] += qn; } else { b[sym] = Math.max(0, b[sym] - qn); b.USDT += tot; }
+            this.addTx({ type: buying ? 'Kauf (Simulation)' : 'Verkauf (Simulation)', asset: sym, amount: buying ? qn : -qn,
+              detail: '@ ' + fmtPrice(p) + ' USDT · ' + (buying ? '−' : '+') + nf(tot, 2) + ' USDT' }, b);
+            this.setState({ modal: null, pending: null, qty: '' });
+            this.flash((buying ? 'Demo-Kauf: +' : 'Demo-Verkauf: −') + fmtQty(qn) + ' ' + sym);
+          } } });
+      },
+      toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
