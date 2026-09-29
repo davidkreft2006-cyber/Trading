@@ -84,7 +84,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     logout: () => { setData(d => ({ ...d, session: null })); toast('Abgemeldet'); },
     addFunds: (asset, amount) => {
       commit({ ...balances, [asset]: balances[asset] + amount },
-        { type: 'Demo-Einzahlung', asset, amount, detail: 'Testguthaben' });
+        { type: 'Demo-Einzahlung', asset, amount, detail: 'Manuell aufgeladen' });
       toast(`+${fmtQty(amount)} ${asset} gutgeschrieben`);
     },
     trade: (side, sym, qty) => {

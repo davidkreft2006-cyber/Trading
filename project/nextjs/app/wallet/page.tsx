@@ -76,7 +76,7 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
           </div>
           {err && <span role="alert" className="text-[13px] font-medium text-down">{err}</span>}
         </div>
-        <Note>Testguthaben ohne realen Gegenwert. Es wird kein Geld eingezahlt.</Note>
+        <Note>Ohne realen Gegenwert. Es wird kein Geld eingezahlt.</Note>
       </form>
     </Modal>
   );
@@ -248,7 +248,7 @@ export default function WalletPage() {
                       <span className="flex h-8 w-8 items-center justify-center rounded-ctl bg-subtle text-muted"><Icon className="h-4 w-4" aria-hidden /></span>
                       <div className="flex min-w-0 flex-col">
                         <span className="text-sm font-medium">{label} <span className="font-normal text-faint">{t.asset}</span></span>
-                        <span className="truncate text-xs text-faint">{t.detail}</span>
+                        <span className="truncate text-xs text-faint">{t.type === 'Demo-Einzahlung' ? 'Manuell aufgeladen' : t.detail}</span>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={`num text-sm font-medium ${t.amount >= 0 ? 'text-up' : 'text-ink'}`}>{t.amount >= 0 ? '+' : '−'}{fmtQty(Math.abs(t.amount))}</span>

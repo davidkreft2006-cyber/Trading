@@ -22,7 +22,7 @@ Dann http://localhost:3000 öffnen. Produktions-Build: `npm run build && npm sta
 - `/markets` Alle Paare mit Suche
 - `/trade?pair=BTC` Chart + Kaufen/Verkaufen (Simulation)
 
-Die Oberfläche tritt wie ein normales Produkt auf, ohne Demo-Banner. Hinweise auf das Testguthaben stehen im Dialog „Guthaben hinzufügen“ („Testguthaben ohne realen Gegenwert“) und bei jeder Einzahlung im Transaktionsverlauf („Testguthaben“). Kaufen, Verkaufen und Zurücksetzen zeigen vorher eine Übersicht zur Bestätigung.
+Die Oberfläche tritt wie ein normales Produkt auf, ohne Demo-Banner. Hinweise, dass kein echtes Geld im Spiel ist, stehen im Dialog „Guthaben hinzufügen“ („Ohne realen Gegenwert“) und bei jeder Einzahlung im Transaktionsverlauf („Manuell aufgeladen“). Kaufen, Verkaufen und Zurücksetzen zeigen vorher eine Übersicht zur Bestätigung.
 
 ## Designsystem
 
