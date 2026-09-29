@@ -9,7 +9,9 @@ import { GlassFilter } from '@/components/ui/liquid-glass-button';
 export const metadata: Metadata = {
   title: { default: 'Auvryn', template: '%s · Auvryn' },
   description: 'Krypto-Märkte, Handel und Wallet. Ein unabhängiges Konzeptprojekt ohne echtes Geld.',
-  robots: { index: false, follow: false }
+  robots: { index: false, follow: false },
+  // Vom iPhone-Home-Bildschirm aus als eigene App starten (ohne Safari-Leiste)
+  appleWebApp: { capable: true, title: 'Auvryn', statusBarStyle: 'black' }
 };
 export const viewport: Viewport = {
   width: 'device-width', initialScale: 1, viewportFit: 'cover',
