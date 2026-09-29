@@ -9,8 +9,8 @@ export function Logo() {
   return (
     <Link href="/" className="flex items-center rounded-ctl py-1" aria-label="Auvryn, zur Startseite">
       {/* Mobil nur das Zeichen, ab sm das volle Logo (Schriftzug für dunklen Grund aufgehellt) */}
-      <img src="/brand/auvryn-mark.png" alt="" width={32} height={26} className="h-[26px] w-auto sm:hidden" />
-      <img src="/brand/auvryn-logo.png" alt="Auvryn" width={128} height={28} className="hidden h-7 w-auto sm:block" />
+      <img src="/brand/auvryn-mark.png" alt="" width={32} height={26} className="h-[26px] w-auto shrink-0 sm:hidden" />
+      <img src="/brand/auvryn-logo.png" alt="Auvryn" width={128} height={28} className="hidden h-7 w-auto shrink-0 sm:block" />
     </Link>
   );
 }
@@ -91,9 +91,9 @@ export function MobileTabBar() {
 export function Footer() {
   return (
     <footer className="mt-16 border-t border-line">
-      <div className="wrap flex flex-col gap-3 py-8 text-[13px] text-faint sm:flex-row sm:items-start sm:justify-between">
-        <img src="/brand/auvryn-logo.png" alt="Auvryn" width={91} height={20} className="h-5 w-auto opacity-80" />
-        <p className="max-w-[62ch]">Unabhängiges Konzeptprojekt. Keine echten Konten, kein echtes Geld, keine Zahlungsabwicklung. Kurse sind Beispieldaten.</p>
+      <div className="wrap flex items-center py-8">
+        {/* shrink-0 + feste Höhe: das Logo behält sein Seitenverhältnis (584 × 128) */}
+        <img src="/brand/auvryn-logo.png" alt="Auvryn" width={110} height={24} className="h-6 w-auto shrink-0 opacity-80" />
       </div>
     </footer>
   );
