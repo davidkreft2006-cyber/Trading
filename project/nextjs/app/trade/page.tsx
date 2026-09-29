@@ -3,16 +3,17 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Info, Receipt } from '@phosphor-icons/react';
-import { COINS, fmtPrice, fmtQty, nf, parseAmount } from '@/lib/data';
+import { COINS, categoryLabel, coinsIn, fmtPrice, fmtQty, nf, parseAmount, volShort, type Category } from '@/lib/data';
 import { useDemo } from '@/lib/DemoContext';
 import { Change, CoinIcon, EmptyState, PriceChart, Segmented } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
+import CategoryTabs from '@/components/CategoryTabs';
 
-function PairBar({ active, onPick }: { active: string; onPick: () => void }) {
+function PairBar({ active, cat, onPick }: { active: string; cat: Category; onPick: () => void }) {
   return (
     <nav aria-label="Handelspaar wählen" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
       <div className="flex min-w-max gap-1.5">
-        {COINS.map(c => {
+        {coinsIn(cat).map(c => {
           const on = c.sym === active;
           return (
             <Link key={c.sym} href={`/trade?pair=${c.sym}`} onClick={onPick} aria-current={on ? 'page' : undefined}
@@ -59,8 +60,8 @@ function Trade() {
       label: buying ? 'Kauf ausführen' : 'Verkauf ausführen',
       tone: buying ? 'up' : 'down',
       lines: [
-        { k: 'Paar', v: `${coin.sym}/USDT` }, { k: 'Menge', v: `${fmtQty(q)} ${coin.sym}` },
-        { k: 'Preis (Market)', v: `${fmtPrice(coin.price)} USDT` }, { k: 'Gesamt', v: `${nf(total, 2)} USDT`, strong: true }
+        { k: 'Paar', v: `${coin.sym}/${coin.quote}` }, { k: 'Menge', v: `${fmtQty(q)} ${coin.sym}` },
+        { k: 'Preis (Market)', v: `${fmtPrice(coin.price)} ${coin.quote}` }, { k: 'Gesamt', v: `${nf(total, 2)} USDT`, strong: true }
       ],
       onConfirm: () => { trade(side, coin.sym, q); setQty(''); }
     });
@@ -69,13 +70,17 @@ function Trade() {
   const stats = [
     ['24h Hoch', fmtPrice(Math.max(...coin.hist, coin.price))],
     ['24h Tief', fmtPrice(Math.min(...coin.hist, coin.price))],
-    ['Volumen 24h', coin.vol.replace(' USDT', '')],
+    ['Volumen 24h', volShort(coin)],
     ['Dein Bestand', user && ready ? `${fmtQty(balances[coin.sym])} ${coin.sym}` : 'Nicht angemeldet']
   ];
 
   return (
     <div className="wrap flex flex-col gap-5 pt-6 md:pt-8">
-      <PairBar active={coin.sym} onPick={() => { setQty(''); setErr(''); }} />
+      <div className="flex flex-col gap-3">
+        <CategoryTabs value={coin.cat} withAll={false}
+          onChange={c => { if (c !== 'all' && c !== coin.cat) { setQty(''); setErr(''); router.push(`/trade?pair=${coinsIn(c)[0].sym}`); } }} />
+        <PairBar active={coin.sym} cat={coin.cat} onPick={() => { setQty(''); setErr(''); }} />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:items-start">
         <section className="panel flex min-w-0 flex-col gap-5 p-4 sm:p-5 lg:col-start-1 lg:row-start-1">
@@ -83,8 +88,8 @@ function Trade() {
             <div className="flex items-center gap-3">
               <CoinIcon sym={coin.sym} size="lg" />
               <div className="flex flex-col">
-                <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{coin.sym}/USDT</h1>
-                <span className="text-[13px] text-muted">{coin.name} · Spot</span>
+                <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{coin.sym}/{coin.quote}</h1>
+                <span className="text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}</span>
               </div>
             </div>
             <div className="flex items-baseline gap-3">
@@ -100,7 +105,7 @@ function Trade() {
               </div>
             ))}
           </dl>
-          <PriceChart data={coin.hist} up={up} label={`${coin.sym}/USDT`} />
+          <PriceChart data={coin.hist} up={up} label={`${coin.sym}/${coin.quote}`} />
         </section>
 
         <aside aria-label="Order-Ticket" className="panel flex flex-col gap-4 p-4 sm:p-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
@@ -112,7 +117,7 @@ function Trade() {
           <dl className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-3"><dt className="text-muted">Verfügbar</dt>
               <dd className="num font-medium">{!ready ? '…' : user ? (buying ? `${fmtQty(balances.USDT)} USDT` : `${fmtQty(balances[coin.sym])} ${coin.sym}`) : 'Anmeldung nötig'}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-muted">Preis (Market)</dt><dd className="num font-medium">{fmtPrice(coin.price)} USDT</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted">Preis (Market)</dt><dd className="num font-medium">{fmtPrice(coin.price)} {coin.quote}</dd></div>
           </dl>
           <div className="flex flex-col gap-2">
             <label htmlFor="qty" className="label">Menge</label>
@@ -141,7 +146,7 @@ function Trade() {
           )}
           <p className="flex gap-2 text-[13px] leading-snug text-faint">
             <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
-            Market-Order zum angezeigten Kurs. Vor der Ausführung siehst du eine Übersicht.
+            Market-Order zum angezeigten Kurs{coin.quote === 'USD' ? ', abgerechnet in USDT (1 USDT = 1 USD)' : ''}. Vor der Ausführung siehst du eine Übersicht.
           </p>
         </aside>
         <section className="panel overflow-hidden lg:col-start-1 lg:row-start-2">

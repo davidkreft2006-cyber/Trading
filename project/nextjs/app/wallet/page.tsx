@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowDownLeft, ArrowUpRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
-import { ASSETS, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, priceOf, type Asset } from '@/lib/data';
+import { ASSETS, FUNDABLE, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, priceOf, type Asset } from '@/lib/data';
 import type { Tx } from '@/lib/storage';
 import { useDemo } from '@/lib/DemoContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
@@ -17,12 +17,14 @@ const quickAmounts = (a: Asset) => [100, 1000, 10000].map(usd => {
   return Math.round(raw / mag) * mag;
 });
 
-function AssetPicker({ value, onChange, children }: { value: Asset; onChange: (a: Asset) => void; children?: ReactNode }) {
+function AssetPicker({ value, onChange, options, label = 'Währung', children }: {
+  value: Asset; onChange: (a: Asset) => void; options: readonly Asset[]; label?: string; children?: ReactNode;
+}) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="label mb-2">Währung</legend>
+      <legend className="label mb-2">{label}</legend>
       <div role="radiogroup" className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
-        {ASSETS.map(a => {
+        {options.map(a => {
           const on = a === value;
           return (
             <button key={a} type="button" role="radio" aria-checked={on} onClick={() => onChange(a)}
@@ -64,7 +66,7 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
     <Modal title="Guthaben hinzufügen" onClose={onClose}
       footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="add-form">Hinzufügen</ModalSubmit></>}>
       <form id="add-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <AssetPicker value={asset} onChange={a => { setAsset(a); setErr(''); }} />
+        <AssetPicker value={asset} options={FUNDABLE} onChange={a => { setAsset(a); setErr(''); }} />
         <div className="flex flex-col gap-2">
           <label htmlFor="add-amount" className="label">Betrag</label>
           <AmountField id="add-amount" autoFocus value={amount} onChange={x => { setAmount(x); setErr(''); }} unit={asset} err={err} placeholder="z. B. 1000" />
@@ -84,7 +86,9 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
 
 function TransferModal({ onClose }: { onClose: () => void }) {
   const { balances, transfer } = useDemo();
-  const held = ASSETS.find(a => balances[a] > 0) ?? 'USDT';
+  const owned = ASSETS.filter(a => balances[a] > 0);
+  const options: Asset[] = owned.length ? owned : ['USDT'];
+  const held = options[0];
   const [asset, setAsset] = useState<Asset>(held);
   const [amount, setAmount] = useState('');
   const [to, setTo] = useState('');
@@ -102,7 +106,7 @@ function TransferModal({ onClose }: { onClose: () => void }) {
     <Modal title="Übertragen" onClose={onClose}
       footer={<><ModalCancel onClick={onClose} /><ModalSubmit form="tr-form">Simuliert übertragen</ModalSubmit></>}>
       <form id="tr-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <AssetPicker value={asset} onChange={a => { setAsset(a); setErr(''); }}>
+        <AssetPicker value={asset} options={options} label="Was übertragen?" onChange={a => { setAsset(a); setErr(''); }}>
           <span className="hint">Verfügbar: <span className="num text-muted">{fmtQty(balances[asset])} {asset}</span></span>
         </AssetPicker>
         <div className="flex flex-col gap-2">
@@ -184,7 +188,7 @@ export default function WalletPage() {
         <section className="panel overflow-hidden" aria-labelledby="assets-h">
           <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
             <h2 id="assets-h" className="text-[15px] font-semibold">Assets</h2>
-            <span className="text-[13px] text-faint">{rows.length} von {ASSETS.length}</span>
+            <span className="text-[13px] text-faint">{rows.length} {rows.length === 1 ? 'Position' : 'Positionen'}</span>
           </div>
           {rows.length === 0 ? (
             <EmptyState icon={<WalletIcon className="h-5 w-5" />} title="Noch kein Guthaben"

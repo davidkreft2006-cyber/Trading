@@ -16,13 +16,17 @@ Dann http://localhost:3000 öffnen. Produktions-Build: `npm run build && npm sta
 
 ## Seiten
 
-- `/` Startseite: Hero, Kurs-Ticker, Marktübersicht
+- `/` Startseite: Hero, Krypto-Übersicht, Sektion „Aktien, ETFs und Rohstoffe“
 - `/login` Demo-Login: nur ein frei wählbarer Demo-Name
 - `/wallet` Gesamtguthaben, Assets, Transaktionsverlauf, „Guthaben hinzufügen“, Übertragen, Zurücksetzen
-- `/markets` Alle Paare mit Suche
+- `/markets` Alle Märkte mit Kategorien (Krypto, Aktien, ETFs, Rohstoffe), Filter und Suche; per `?cat=stock|etf|commodity|crypto` direkt ansteuerbar
 - `/trade?pair=BTC` Chart + Kaufen/Verkaufen (Simulation)
 
 Die Oberfläche tritt wie ein normales Produkt auf, ohne Demo-Banner. Hinweise, dass kein echtes Geld im Spiel ist, stehen im Dialog „Guthaben hinzufügen“ („Ohne realen Gegenwert“) und bei jeder Einzahlung im Transaktionsverlauf („Manuell aufgeladen“). Kaufen, Verkaufen und Zurücksetzen zeigen vorher eine Übersicht zur Bestätigung.
+
+## Anlageklassen
+
+In `lib/data.ts`: 8 Kryptowährungen, 6 Aktien, 4 ETFs, 3 Rohstoffe (feste Beispielkurse). Aktien, ETFs und Rohstoffe notieren in USD und werden mit USDT gekauft (1 USDT = 1 USD). Aufladen geht nur mit USDT und Krypto (`FUNDABLE`).
 
 ## Designsystem
 

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { CaretDown, CaretUp, MagnifyingGlass } from '@phosphor-icons/react';
-import { fmtPrice, type Coin } from '@/lib/data';
+import { fmtPrice, volShort, type Coin } from '@/lib/data';
 import { Change, CoinIcon, EmptyState, Sparkline } from './ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
@@ -47,7 +47,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
       {rows.length === 0 && (
         <EmptyState icon={<MagnifyingGlass className="h-5 w-5" />} title="Kein Paar gefunden"
           action={onReset && <LiquidButton variant="glass" size="sm" onClick={onReset}>Suche zurücksetzen</LiquidButton>}>
-          Versuche ein Kürzel wie BTC oder einen Namen wie Solana.
+          Versuche ein Kürzel wie BTC oder AAPL oder einen Namen wie Gold.
         </EmptyState>
       )}
       <div className="divide-y divide-line">
@@ -56,7 +56,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
             <div className="flex min-w-0 items-center gap-3">
               <CoinIcon sym={c.sym} />
               <div className="flex min-w-0 flex-col">
-                <span className="text-[15px] font-semibold leading-tight">{c.sym}<span className="font-normal text-faint">/USDT</span></span>
+                <span className="text-[15px] font-semibold leading-tight">{c.sym}<span className="font-normal text-faint">/{c.quote}</span></span>
                 <span className="truncate text-[13px] text-muted">{c.name}</span>
               </div>
             </div>
@@ -65,7 +65,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
               <Change value={c.chg} className="text-[13px] md:text-sm" />
             </div>
             <div className="hidden justify-end md:flex"><Sparkline data={c.hist} up={c.chg >= 0} className="h-8 w-full max-w-[112px]" /></div>
-            <span className="num hidden text-right text-sm text-muted md:block">{c.vol.replace(' USDT', '')}</span>
+            <span className="num hidden text-right text-sm text-muted md:block">{volShort(c)}</span>
             <span className="hidden justify-end lg:flex">
               <LiquidButton asChild variant="glass" size="sm" className="group-hover:text-accent"><span>Handeln</span></LiquidButton>
             </span>

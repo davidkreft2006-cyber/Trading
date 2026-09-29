@@ -1,22 +1,25 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, HardDrives, Plus, UserCircle, ArrowsLeftRight } from '@phosphor-icons/react';
-import { COINS, fmtPrice } from '@/lib/data';
+import { COINS, coinsIn, fmtPrice, type Category } from '@/lib/data';
 import { useDemo } from '@/lib/DemoContext';
 import MarketTable from '@/components/MarketTable';
-import { Change, CoinIcon, PriceChart } from '@/components/ui/primitives';
+import { Change, CoinIcon, PriceChart, Sparkline } from '@/components/ui/primitives';
+import CategoryTabs from '@/components/CategoryTabs';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { ShinyButton } from '@/components/ui/shiny-button';
 
 const STEPS = [
   { icon: UserCircle, t: 'Namen wählen', d: 'Kein Passwort, keine E-Mail, keine Telefonnummer. Ein Name reicht.' },
-  { icon: Plus, t: 'Guthaben aufladen', d: 'USDT, BTC, ETH und sechs weitere Währungen, direkt in der Wallet.' },
+  { icon: Plus, t: 'Guthaben aufladen', d: 'Mit USDT oder Krypto, direkt in der Wallet. Damit kaufst du auch Aktien, ETFs und Gold.' },
   { icon: ArrowsLeftRight, t: 'Handeln', d: 'Kaufen, verkaufen und übertragen. Vor jeder Order siehst du eine Übersicht.' },
   { icon: HardDrives, t: 'Lokal gespeichert', d: 'Guthaben und Verlauf bleiben in deinem Browser und lassen sich jederzeit löschen.' }
 ];
 
 export default function Home() {
   const { user } = useDemo();
+  const [tradfi, setTradfi] = useState<Category>('stock');
   const btc = COINS[0];
   const up = btc.chg >= 0;
   return (
@@ -65,14 +68,47 @@ export default function Home() {
       <section className="wrap flex flex-col gap-4 py-8">
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-semibold tracking-[-0.02em]">Märkte</h2>
+            <h2 className="text-2xl font-semibold tracking-[-0.02em]">Krypto</h2>
             <p className="text-sm text-muted">Spot-Paare gegen USDT</p>
           </div>
-          <Link href="/markets" className="flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
-            Alle {COINS.length} Paare<ArrowRight weight="bold" className="h-3.5 w-3.5" />
+          <Link href="/markets?cat=crypto" className="flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
+            Alle {coinsIn('crypto').length} Paare<ArrowRight weight="bold" className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <MarketTable coins={COINS.slice(0, 5)} />
+        <MarketTable coins={coinsIn('crypto').slice(0, 5)} />
+      </section>
+
+      <section className="wrap flex flex-col gap-4 py-8" aria-labelledby="tradfi-h">
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 id="tradfi-h" className="text-2xl font-semibold tracking-[-0.02em]">Aktien, ETFs und Rohstoffe</h2>
+            <p className="text-sm text-muted">Mit USDT handeln wie Krypto. Beispielkurse in USD.</p>
+          </div>
+          <Link href={`/markets?cat=${tradfi}`} className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent hover:underline">
+            Alle ansehen<ArrowRight weight="bold" className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <CategoryTabs value={tradfi} onChange={c => c !== 'all' && setTradfi(c)} withAll={false} only={['stock', 'etf', 'commodity']} />
+        <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
+          {coinsIn(tradfi).map(c => (
+            <li key={c.sym}>
+              <Link href={`/trade?pair=${c.sym}`} className="panel group flex h-full flex-col gap-3 p-3.5 transition-colors hover:border-line-strong hover:bg-subtle/60 sm:p-4">
+                <div className="flex items-center gap-2.5">
+                  <CoinIcon sym={c.sym} size="sm" />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-sm font-semibold leading-tight">{c.sym}</span>
+                    <span className="truncate text-xs text-muted">{c.name}</span>
+                  </div>
+                </div>
+                <Sparkline data={c.hist} up={c.chg >= 0} className="h-10 w-full" />
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <span className="num text-[15px] font-medium">{fmtPrice(c.price)} <span className="text-xs text-faint">USD</span></span>
+                  <Change value={c.chg} className="text-xs" />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="wrap grid gap-8 py-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-14">
