@@ -3,7 +3,8 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowDownLeft, ArrowUpRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
-import { ASSETS, FUNDABLE, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, priceOf, type Asset } from '@/lib/data';
+import { ASSETS, FUNDABLE, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, type Asset } from '@/lib/data';
+import { useQuotes } from '@/lib/quotes';
 import type { Tx } from '@/lib/storage';
 import { useDemo } from '@/lib/DemoContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
@@ -11,7 +12,7 @@ import { CoinIcon, EmptyState, Note } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 /** Gerundete Schnellbeträge mit etwa 100 / 1.000 / 10.000 USD Gegenwert. */
-const quickAmounts = (a: Asset) => [100, 1000, 10000].map(usd => {
+const quickAmounts = (a: Asset, priceOf: (a: Asset) => number) => [100, 1000, 10000].map(usd => {
   const raw = usd / priceOf(a);
   const mag = 10 ** (Math.floor(Math.log10(raw)) - 1);
   return Math.round(raw / mag) * mag;
@@ -51,6 +52,7 @@ function AmountField({ id, value, onChange, unit, err, placeholder, autoFocus }:
 
 function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount: string }; onClose: () => void }) {
   const { addFunds } = useDemo();
+  const { priceOf } = useQuotes();
   const [asset, setAsset] = useState<Asset>(initial?.asset ?? 'USDT');
   const [amount, setAmount] = useState(initial?.amount ?? '');
   const [err, setErr] = useState('');
@@ -71,7 +73,7 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
           <label htmlFor="add-amount" className="label">Betrag</label>
           <AmountField id="add-amount" autoFocus value={amount} onChange={x => { setAmount(x); setErr(''); }} unit={asset} err={err} placeholder="z. B. 1000" />
           <div className="flex flex-wrap items-center gap-1.5">
-            {quickAmounts(asset).map(q => (
+            {quickAmounts(asset, priceOf).map(q => (
               <LiquidButton key={q} type="button" variant="glass" size="sm" className="h-7 px-3 font-mono" onClick={() => { setAmount(fmtQty(q)); setErr(''); }}>{fmtQty(q)}</LiquidButton>
             ))}
             {v > 0 && !err && <span className="num ml-auto text-[13px] text-faint">≈ {fmtUsd(v * priceOf(asset))}</span>}
@@ -147,6 +149,7 @@ function WalletSkeleton() {
 
 export default function WalletPage() {
   const { ready, user, balances, txs, total, profileNames, resetAll, confirm } = useDemo();
+  const { priceOf } = useQuotes();
   const router = useRouter();
   const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer' } | null>(null);
   const [showAll, setShowAll] = useState(false);

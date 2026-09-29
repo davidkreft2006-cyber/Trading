@@ -3,10 +3,11 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { CATEGORIES, COINS } from '@/lib/data';
+import { CATEGORIES } from '@/lib/data';
+import { useQuotes, type FeedStatus } from '@/lib/quotes';
 import CategoryTabs, { type Cat } from '@/components/CategoryTabs';
 import MarketTable from '@/components/MarketTable';
-import { Change, Segmented } from '@/components/ui/primitives';
+import { Change, LiveBadge, Segmented } from '@/components/ui/primitives';
 
 type Filter = 'all' | 'gainers' | 'losers';
 const CAT_KEYS: Cat[] = ['all', ...CATEGORIES.map(c => c.key)];
@@ -20,7 +21,10 @@ function Markets() {
   const [filter, setFilter] = useState<Filter>('all');
   const query = q.trim().toLowerCase();
 
-  const inCat = COINS.filter(c => cat === 'all' || c.cat === cat);
+  const { coins, status, statusOf } = useQuotes();
+  const inCat = coins.filter(c => cat === 'all' || c.cat === cat);
+  // „Alle“: nur live, wenn beide Quellen live sind
+  const feed: FeedStatus = cat !== 'all' ? statusOf(cat) : status.crypto === 'live' && status.tradfi === 'live' ? 'live' : status.crypto === 'loading' || status.tradfi === 'loading' ? 'loading' : 'fallback';
   const list = inCat
     .filter(c => filter === 'all' || (filter === 'gainers' ? c.chg >= 0 : c.chg < 0))
     .filter(c => !query || c.sym.toLowerCase().includes(query) || c.name.toLowerCase().includes(query));
@@ -37,7 +41,7 @@ function Markets() {
     <div className="wrap flex flex-col gap-6 pt-8 md:pt-10">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Märkte</h1>
-        <p className="text-sm text-muted">Krypto, Aktien, ETFs und Rohstoffe. Beispielkurse.</p>
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">Krypto, Aktien, ETFs und Rohstoffe <LiveBadge status={feed} delayed={cat !== 'crypto'} /></p>
       </div>
 
       <CategoryTabs value={cat} onChange={pickCat} />

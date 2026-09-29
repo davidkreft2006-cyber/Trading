@@ -3,17 +3,19 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Info, Receipt } from '@phosphor-icons/react';
-import { COINS, categoryLabel, coinsIn, fmtPrice, fmtQty, nf, parseAmount, volShort, type Category } from '@/lib/data';
+import { categoryLabel, coinsIn, fmtPrice, fmtQty, nf, parseAmount, volShort, type Category } from '@/lib/data';
 import { useDemo } from '@/lib/DemoContext';
-import { Change, CoinIcon, EmptyState, PriceChart, Segmented } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, PriceChart, Segmented } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import CategoryTabs from '@/components/CategoryTabs';
+import { useQuotes } from '@/lib/quotes';
 
 function PairBar({ active, cat, onPick }: { active: string; cat: Category; onPick: () => void }) {
+  const { coins } = useQuotes();
   return (
     <nav aria-label="Handelspaar wählen" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
       <div className="flex min-w-max gap-1.5">
-        {coinsIn(cat).map(c => {
+        {coins.filter(c => c.cat === cat).map(c => {
           const on = c.sym === active;
           return (
             <Link key={c.sym} href={`/trade?pair=${c.sym}`} onClick={onPick} aria-current={on ? 'page' : undefined}
@@ -32,7 +34,8 @@ function Trade() {
   const params = useSearchParams();
   const router = useRouter();
   const { ready, user, balances, txs, trade, confirm } = useDemo();
-  const coin = COINS.find(c => c.sym === params.get('pair')) ?? COINS[0];
+  const { coins, statusOf } = useQuotes();
+  const coin = coins.find(c => c.sym === params.get('pair')) ?? coins[0];
   const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy');
   const [qty, setQty] = useState('');
   const [err, setErr] = useState('');
@@ -55,15 +58,17 @@ function Trade() {
     if (!(q > 0)) return setErr('Bitte eine Menge größer als 0 eingeben.');
     if (buying && total > balances.USDT + 1e-9) return setErr('Nicht genügend USDT. Lade in der Wallet Guthaben auf.');
     if (!buying && q > balances[coin.sym] + 1e-12) return setErr(`Nicht genügend ${coin.sym}.`);
+    const price = coin.price; // Kurs zum Zeitpunkt der Bestätigung
+    const tot = q * price;
     confirm({
       title: `${buying ? 'Kauf' : 'Verkauf'} bestätigen`,
       label: buying ? 'Kauf ausführen' : 'Verkauf ausführen',
       tone: buying ? 'up' : 'down',
       lines: [
         { k: 'Paar', v: `${coin.sym}/${coin.quote}` }, { k: 'Menge', v: `${fmtQty(q)} ${coin.sym}` },
-        { k: 'Preis (Market)', v: `${fmtPrice(coin.price)} ${coin.quote}` }, { k: 'Gesamt', v: `${nf(total, 2)} USDT`, strong: true }
+        { k: 'Preis (Market)', v: `${fmtPrice(price)} ${coin.quote}` }, { k: 'Gesamt', v: `${nf(tot, 2)} USDT`, strong: true }
       ],
-      onConfirm: () => { trade(side, coin.sym, q); setQty(''); }
+      onConfirm: () => { trade(side, coin.sym, q, price); setQty(''); }
     });
   };
 
@@ -89,11 +94,11 @@ function Trade() {
               <CoinIcon sym={coin.sym} size="lg" />
               <div className="flex flex-col">
                 <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{coin.sym}/{coin.quote}</h1>
-                <span className="text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}</span>
+                <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}<LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /></span>
               </div>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="num text-[28px] font-semibold leading-none">{fmtPrice(coin.price)}</span>
+              <span className="num text-[28px] font-semibold leading-none"><FlashValue value={coin.price}>{fmtPrice(coin.price)}</FlashValue></span>
               <Change value={coin.chg} className="text-sm" />
             </div>
           </div>
@@ -105,7 +110,7 @@ function Trade() {
               </div>
             ))}
           </dl>
-          <PriceChart data={coin.hist} up={up} label={`${coin.sym}/${coin.quote}`} />
+          <PriceChart data={coin.hist} times={coin.times} up={up} label={`${coin.sym}/${coin.quote}`} />
         </section>
 
         <aside aria-label="Order-Ticket" className="panel flex flex-col gap-4 p-4 sm:p-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">

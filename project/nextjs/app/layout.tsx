@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { DemoProvider } from '@/lib/DemoContext';
+import { QuotesProvider } from '@/lib/quotes';
 import { Footer, Header, MobileTabBar } from '@/components/Shell';
 import { GlassFilter } from '@/components/ui/liquid-glass-button';
 
@@ -26,13 +27,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#inhalt" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-toast focus:rounded-ctl focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:shadow">
           Zum Inhalt springen
         </a>
-        <DemoProvider>
-          <Header />
-          <main id="inhalt" className="flex-1">{children}</main>
-          <Footer />
-          <MobileTabBar />
-          <GlassFilter />
-        </DemoProvider>
+        <QuotesProvider>
+          <DemoProvider>
+            <Header />
+            <main id="inhalt" className="flex-1">{children}</main>
+            <Footer />
+            <MobileTabBar />
+            <GlassFilter />
+          </DemoProvider>
+        </QuotesProvider>
       </body>
     </html>
   );

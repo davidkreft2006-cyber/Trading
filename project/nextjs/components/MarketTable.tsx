@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { CaretDown, CaretUp, MagnifyingGlass } from '@phosphor-icons/react';
 import { fmtPrice, volShort, type Coin } from '@/lib/data';
-import { Change, CoinIcon, EmptyState, Sparkline } from './ui/primitives';
+import { Change, CoinIcon, EmptyState, FlashValue, Sparkline } from './ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 type SortKey = 'sym' | 'price' | 'chg' | 'volNum';
@@ -61,7 +61,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
               </div>
             </div>
             <div className="flex flex-col items-end md:contents">
-              <span className="num text-right text-[15px] font-medium">{fmtPrice(c.price)}</span>
+              <span className="num text-right text-[15px] font-medium"><FlashValue value={c.price}>{fmtPrice(c.price)}</FlashValue></span>
               <Change value={c.chg} className="text-[13px] md:text-sm" />
             </div>
             <div className="hidden justify-end md:flex"><Sparkline data={c.hist} up={c.chg >= 0} className="h-8 w-full max-w-[112px]" /></div>

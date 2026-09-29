@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ASSETS, fmtPrice, fmtQty, nf, priceOf, type Asset, type CoinSym } from './data';
+import { ASSETS, fmtPrice, fmtQty, nf, type Asset, type CoinSym } from './data';
+import { useQuotes } from './quotes';
 import { clearData, emptyBalances, loadData, saveData, type Balances, type DemoData, type Tx } from './storage';
 import { CheckCircle } from '@phosphor-icons/react';
 import ConfirmDialog, { type ConfirmRequest } from '@/components/ConfirmDialog';
@@ -15,7 +16,8 @@ interface Ctx {
   login: (name: string) => string | null;
   logout: () => void;
   addFunds: (asset: Asset, amount: number) => void;
-  trade: (side: 'buy' | 'sell', sym: CoinSym, qty: number) => void;
+  /** price: Kurs, der dem Nutzer in der Bestätigung angezeigt wurde */
+  trade: (side: 'buy' | 'sell', sym: CoinSym, qty: number, price: number) => void;
   transfer: (asset: Asset, amount: number, to: string) => void;
   resetAll: () => void;
   confirm: (req: ConfirmRequest) => void;
@@ -32,6 +34,7 @@ export const useDemo = () => {
 const NAME_RE = /^[\p{L}\p{N} ._-]+$/u;
 
 export function DemoProvider({ children }: { children: ReactNode }) {
+  const { priceOf } = useQuotes();
   const [data, setData] = useState<DemoData>({ session: null, profiles: {} });
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState<ConfirmRequest | null>(null);
@@ -87,8 +90,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         { type: 'Demo-Einzahlung', asset, amount, detail: 'Manuell aufgeladen' });
       toast(`+${fmtQty(amount)} ${asset} gutgeschrieben`);
     },
-    trade: (side, sym, qty) => {
-      const price = priceOf(sym);
+    trade: (side, sym, qty, price) => {
       const tot = qty * price;
       const b = { ...balances };
       if (side === 'buy') { b.USDT = Math.max(0, b.USDT - tot); b[sym] += qty; }

@@ -1,7 +1,8 @@
 'use client';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, Info } from '@phosphor-icons/react';
 import { fmtChg, fmtPrice } from '@/lib/data';
+import type { FeedStatus } from '@/lib/quotes';
 
 /** Neutrale Monogramm-Marke je Asset. Bewusst ohne Markenfarben der echten Coins. */
 export function CoinIcon({ sym, size = 'md' }: { sym: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -42,7 +43,9 @@ export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]
  * Kursverlauf mit Fadenkreuz und Tooltip.
  * Eine Serie, eine Achse; Raster und Achsenbeschriftung bewusst zurückhaltend.
  */
-export function PriceChart({ data, up, label }: { data: number[]; up: boolean; label: string }) {
+const fmtTime = (t: number) => new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+export function PriceChart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const gid = useId();
@@ -89,7 +92,7 @@ export function PriceChart({ data, up, label }: { data: number[]; up: boolean; l
             <div className="pointer-events-none absolute top-0 z-10 rounded-ctl border border-line bg-surface px-2.5 py-1.5 shadow-[0_6px_20px_-8px_rgb(15_20_25/0.25)]"
               style={{ left: `${leftPct}%`, transform: `translateX(${leftPct > 70 ? 'calc(-100% - 10px)' : '10px'})` }}>
               <div className="num text-[13px] font-medium text-ink">{fmtPrice(data[hi])} USDT</div>
-              <div className="text-[11px] text-faint">{hi === data.length - 1 ? 'Aktueller Tick' : `vor ${data.length - 1 - hi} Ticks`}</div>
+              <div className="text-[11px] text-faint">{hi === data.length - 1 ? 'Aktuell' : times?.[hi] ? fmtTime(times[hi]) : `vor ${data.length - 1 - hi} Ticks`}</div>
             </div>
           )}
         </div>
@@ -99,7 +102,7 @@ export function PriceChart({ data, up, label }: { data: number[]; up: boolean; l
           ))}
         </div>
       </div>
-      <figcaption className="hint">Letzte 60 Ticks</figcaption>
+      <figcaption className="hint">{times?.length ? `Verlauf seit ${fmtTime(times[0])}` : 'Beispielverlauf'}</figcaption>
     </figure>
   );
 }
@@ -143,4 +146,30 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
       })}
     </div>
   );
+}
+
+/** Herkunft der Kurse. Der Punkt zeigt echten Status (live / Ausweichwerte), keine Deko. */
+export function LiveBadge({ status, delayed = false, className = '' }: { status: FeedStatus; delayed?: boolean; className?: string }) {
+  const text = status === 'loading' ? 'Kurse laden' : status === 'fallback' ? 'Beispielkurse' : delayed ? 'Live, ggf. verzögert' : 'Live';
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${status === 'live' ? 'text-up' : 'text-faint'} ${className}`} role="status">
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${status === 'live' ? 'bg-up motion-safe:animate-pulse' : 'bg-faint'}`} />
+      {text}
+    </span>
+  );
+}
+
+/** Kurzes Aufleuchten, wenn sich ein Kurs ändert (grün steigend, rot fallend). */
+export function FlashValue({ value, children, className = '' }: { value: number; children: ReactNode; className?: string }) {
+  const prev = useRef(value);
+  const [dir, setDir] = useState<'up' | 'down' | null>(null);
+  useEffect(() => {
+    if (value === prev.current) return;
+    setDir(value > prev.current ? 'up' : 'down');
+    prev.current = value;
+    const t = setTimeout(() => setDir(null), 700);
+    return () => clearTimeout(t);
+  }, [value]);
+  const tint = dir === 'up' ? 'bg-up/15 text-up' : dir === 'down' ? 'bg-down/15 text-down' : '';
+  return <span className={`-mx-1 rounded-tag px-1 transition-colors duration-500 ${tint} ${className}`}>{children}</span>;
 }

@@ -2,10 +2,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, HardDrives, Plus, UserCircle, ArrowsLeftRight } from '@phosphor-icons/react';
-import { COINS, coinsIn, fmtPrice, type Category } from '@/lib/data';
+import { fmtPrice, type Category } from '@/lib/data';
+import { useQuotes } from '@/lib/quotes';
 import { useDemo } from '@/lib/DemoContext';
 import MarketTable from '@/components/MarketTable';
-import { Change, CoinIcon, PriceChart, Sparkline } from '@/components/ui/primitives';
+import { Change, CoinIcon, LiveBadge, PriceChart, Sparkline } from '@/components/ui/primitives';
 import CategoryTabs from '@/components/CategoryTabs';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { ShinyButton } from '@/components/ui/shiny-button';
@@ -20,7 +21,9 @@ const STEPS = [
 export default function Home() {
   const { user } = useDemo();
   const [tradfi, setTradfi] = useState<Category>('stock');
-  const btc = COINS[0];
+  const { coins, coinOf, statusOf } = useQuotes();
+  const coinsIn = (cat: Category) => coins.filter(c => c.cat === cat);
+  const btc = coinOf('BTC')!;
   const up = btc.chg >= 0;
   return (
     <>
@@ -57,7 +60,7 @@ export default function Home() {
               <Change value={btc.chg} className="text-[13px]" />
             </div>
           </div>
-          <PriceChart data={btc.hist} up={up} label="BTC/USDT" />
+          <PriceChart data={btc.hist} times={btc.times} up={up} label="BTC/USDT" />
           <div className="mt-4 grid grid-cols-2 gap-2">
             <LiquidButton asChild variant="buy" size="lg" className="w-full"><Link href="/trade?pair=BTC&side=buy">Kaufen</Link></LiquidButton>
             <LiquidButton asChild variant="sell" size="lg" className="w-full"><Link href="/trade?pair=BTC&side=sell">Verkaufen</Link></LiquidButton>
@@ -69,7 +72,7 @@ export default function Home() {
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-semibold tracking-[-0.02em]">Krypto</h2>
-            <p className="text-sm text-muted">Spot-Paare gegen USDT</p>
+            <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">Spot-Paare gegen USDT <LiveBadge status={statusOf('crypto')} /></p>
           </div>
           <Link href="/markets?cat=crypto" className="flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
             Alle {coinsIn('crypto').length} Paare<ArrowRight weight="bold" className="h-3.5 w-3.5" />
@@ -82,7 +85,7 @@ export default function Home() {
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h2 id="tradfi-h" className="text-2xl font-semibold tracking-[-0.02em]">Aktien, ETFs und Rohstoffe</h2>
-            <p className="text-sm text-muted">Mit USDT handeln wie Krypto. Beispielkurse in USD.</p>
+            <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">Mit USDT handeln wie Krypto. Kurse in USD. <LiveBadge status={statusOf(tradfi)} delayed /></p>
           </div>
           <Link href={`/markets?cat=${tradfi}`} className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent hover:underline">
             Alle ansehen<ArrowRight weight="bold" className="h-3.5 w-3.5" />

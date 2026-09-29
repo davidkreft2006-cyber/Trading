@@ -1,8 +1,9 @@
-// Fiktive, statische Beispieldaten. Keine Live-Kurse, keine Anbindung an eine Börse.
+// Stammdaten der Instrumente. price/chg/vol/hist sind Beispielwerte und dienen als Ausweichwerte,
+// solange (oder falls) keine Live-Kurse geladen sind; Live-Kurse kommen aus lib/quotes.tsx.
 export const ASSETS = [
   'USDT', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'LINK',
   'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'SAP',
-  'SPY', 'QQQ', 'IWDA', 'VWCE',
+  'SPY', 'QQQ', 'URTH', 'VT',
   'XAU', 'XAG', 'OIL'
 ] as const;
 export type Asset = (typeof ASSETS)[number];
@@ -28,6 +29,7 @@ export interface Coin {
   vol: string;
   volNum: number; // für Sortierung
   hist: number[];
+  times?: number[]; // Zeitstempel zu hist (nur bei Live-Daten)
 }
 
 // Deterministischer Zufallspfad (gleicher Seed = gleiche Kurve), damit Server- und Client-Render identisch sind.
@@ -70,8 +72,8 @@ const stocks: Raw[] = [
 const etfs: Raw[] = [
   { sym: 'SPY', name: 'S&P 500 ETF', price: 562.41, chg: 0.46, vol: '28,7 Mrd. USD' },
   { sym: 'QQQ', name: 'Nasdaq 100 ETF', price: 482.13, chg: 0.71, vol: '17,9 Mrd. USD' },
-  { sym: 'IWDA', name: 'MSCI World ETF', price: 102.35, chg: 0.28, vol: '214 Mio. USD' },
-  { sym: 'VWCE', name: 'FTSE All-World ETF', price: 124.82, chg: 0.33, vol: '96 Mio. USD' }
+  { sym: 'URTH', name: 'MSCI World ETF', price: 152.35, chg: 0.28, vol: '214 Mio. USD' },
+  { sym: 'VT', name: 'Vanguard Total World ETF', price: 118.82, chg: 0.33, vol: '96 Mio. USD' }
 ];
 const commodities: Raw[] = [
   { sym: 'XAU', name: 'Gold (Feinunze)', price: 2381.4, chg: 0.62, vol: '146 Mrd. USD' },
@@ -93,6 +95,10 @@ export const COINS: Coin[] = [
 export const coinsIn = (cat: Category) => COINS.filter(c => c.cat === cat);
 /** Mit diesen Währungen lässt sich die Wallet aufladen; Aktien, ETFs und Rohstoffe kauft man mit USDT. */
 export const FUNDABLE: Asset[] = ['USDT', ...coinsIn('crypto').map(c => c.sym)];
+/** Volumen als Kurztext, z. B. 1,82 Mrd. */
+export const fmtVol = (v: number) =>
+  v >= 1e9 ? `${nf(v / 1e9, v >= 1e10 ? 1 : 2)} Mrd.` : v >= 1e6 ? `${Math.round(v / 1e6).toLocaleString('de-DE')} Mio.` : v.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+
 /** Volumen ohne Währungszusatz, für Tabellen */
 export const volShort = (c: Coin) => c.vol.replace(/ USDT?$/, '');
 export const coinOf = (sym: string) => COINS.find(c => c.sym === sym);

@@ -24,9 +24,16 @@ Dann http://localhost:3000 öffnen. Produktions-Build: `npm run build && npm sta
 
 Die Oberfläche tritt wie ein normales Produkt auf, ohne Demo-Banner. Hinweise, dass kein echtes Geld im Spiel ist, stehen im Dialog „Guthaben hinzufügen“ („Ohne realen Gegenwert“) und bei jeder Einzahlung im Transaktionsverlauf („Manuell aufgeladen“). Kaufen, Verkaufen und Zurücksetzen zeigen vorher eine Übersicht zur Bestätigung.
 
-## Anlageklassen
+## Anlageklassen und Kurse
 
-In `lib/data.ts`: 8 Kryptowährungen, 6 Aktien, 4 ETFs, 3 Rohstoffe (feste Beispielkurse). Aktien, ETFs und Rohstoffe notieren in USD und werden mit USDT gekauft (1 USDT = 1 USD). Aufladen geht nur mit USDT und Krypto (`FUNDABLE`).
+8 Kryptowährungen, 6 Aktien, 4 ETFs, 3 Rohstoffe (`lib/data.ts`). Aktien, ETFs und Rohstoffe notieren in USD und werden mit USDT gekauft (1 USDT = 1 USD). Aufladen geht nur mit USDT und Krypto (`FUNDABLE`).
+
+Echte Kurse (`lib/quotes.tsx`, ohne API-Schlüssel):
+
+- **Krypto:** Binance-Marktdaten direkt im Browser. REST (`data-api.binance.vision`) für Startwerte und 24h-Verlauf (15-Min-Kerzen), WebSocket (`data-stream.binance.vision`) für sekündliche Updates, bei Ausfall REST-Abfrage alle 15 s.
+- **Aktien, ETFs, Rohstoffe:** Route `app/api/quotes/route.ts` holt den Chart-Endpunkt von Yahoo Finance serverseitig (Yahoo erlaubt keine Browser-Abfragen); 60 s CDN-Cache. Gold/Silber/Brent als Futures (`GC=F`, `SI=F`, `BZ=F`). Kurse können bis zu 15 Min. verzögert sein.
+- **Ausfall:** Fehlt eine Quelle, bleiben die Beispielwerte aus `lib/data.ts` stehen, der Hinweis zeigt „Beispielkurse“.
+- Käufe/Verkäufe laufen zum Kurs, der in der Bestätigung angezeigt wurde.
 
 ## Designsystem
 
