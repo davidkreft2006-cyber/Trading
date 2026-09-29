@@ -1,66 +1,65 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowsLeftRight, ChartLineUp, House, SignOut, Wallet } from '@phosphor-icons/react';
 import { useDemo } from '@/lib/DemoContext';
+import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
-export function DemoBanner() {
+export function Logo() {
   return (
-    <div className="sticky top-0 z-[60] flex min-h-9 items-stretch border-b border-[#3a3735] bg-[#201e1d] text-[13px] font-semibold text-[#f3f2f2]">
-      <span className="flex items-center bg-accent px-3.5 font-extrabold tracking-[0.08em] text-white">DEMO</span>
-      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 px-3.5 py-2">
-        <span>DEMO – kein echtes Konto</span>
-        <span className="font-normal text-[#c9c5c3]">Kein echtes Geld, keine echten Kryptowährungen. Alle Daten bleiben lokal im Browser.</span>
-      </div>
-    </div>
+    <Link href="/" className="flex items-center rounded-ctl py-1" aria-label="Auvryn, zur Startseite">
+      {/* Mobil nur das Zeichen, ab sm das volle Logo (Schriftzug für dunklen Grund aufgehellt) */}
+      <img src="/brand/auvryn-mark.png" alt="" width={32} height={26} className="h-[26px] w-auto sm:hidden" />
+      <img src="/brand/auvryn-logo.png" alt="Auvryn" width={128} height={28} className="hidden h-7 w-auto sm:block" />
+    </Link>
   );
 }
 
 const NAV = [
-  { href: '/', label: 'Start' },
-  { href: '/markets', label: 'Märkte' },
-  { href: '/trade', label: 'Handel' },
-  { href: '/wallet', label: 'Wallet' }
+  { href: '/', label: 'Start', icon: House },
+  { href: '/markets', label: 'Märkte', icon: ChartLineUp },
+  { href: '/trade', label: 'Handel', icon: ArrowsLeftRight },
+  { href: '/wallet', label: 'Wallet', icon: Wallet }
 ];
+const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
 export function Header() {
   const path = usePathname();
-  const { user, logout, theme, toggleTheme } = useDemo();
+  const router = useRouter();
+  const { ready, user, logout } = useDemo();
+  const onLogout = () => { router.push('/'); logout(); };
+
   return (
-    <header className="border-b-2 border-ink bg-bg">
-      <div className="wrap flex min-h-16 flex-wrap items-center gap-x-6">
-        <Link href="/" className="flex items-center gap-2.5 py-3 !text-ink">
-          <span className="block h-7 w-7 bg-accent" aria-hidden />
-          <span className="text-[22px] font-extrabold tracking-tight">KRYO</span>
-          <span className="border-2 border-ink px-1.5 text-[11px] font-extrabold tracking-wider">DEMO</span>
-        </Link>
-        <nav className="order-3 flex basis-full gap-1 overflow-x-auto md:order-none md:basis-auto md:flex-1">
+    <header className="sticky top-0 z-header border-b border-line bg-bg">
+      <div className="wrap flex h-14 items-center gap-6 md:h-16">
+        <Logo />
+        <nav aria-label="Hauptnavigation" className="hidden h-full items-stretch gap-1 md:flex">
           {NAV.map(n => {
-            const active = n.href === '/' ? path === '/' : path.startsWith(n.href);
+            const on = isActive(path, n.href);
             return (
-              <Link key={n.href} href={n.href}
-                className={`whitespace-nowrap border-b-[3px] px-3 pb-[17px] pt-5 text-[15px] font-semibold !text-ink hover:!text-accent ${active ? 'border-accent' : 'border-transparent'}`}>
+              <Link key={n.href} href={n.href} aria-current={on ? 'page' : undefined}
+                className={`relative flex items-center px-3 text-sm font-medium transition-colors ${on ? 'text-ink' : 'text-muted hover:text-ink'}`}>
                 {n.label}
+                <span aria-hidden className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
               </Link>
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={toggleTheme} className="border-2 border-ink px-2.5 py-2 text-[13px] font-semibold hover:bg-surface">
-            {theme === 'dark' ? 'Hell' : 'Dunkel'}
-          </button>
-          {user ? (
+        <div className="ml-auto flex items-center gap-1.5">
+          {!ready ? (
+            <span className="skeleton h-9 w-28" aria-hidden />
+          ) : user ? (
             <>
-              <Link href="/wallet" className="flex items-center gap-2 bg-surface px-3 py-2.5 text-sm font-semibold !text-ink hover:bg-hover">
-                <span className="flex h-[22px] w-[22px] items-center justify-center bg-ink text-xs font-extrabold text-bg">{user[0].toUpperCase()}</span>
-                <span className="hidden sm:inline">{user}</span>
+              <Link href="/wallet" className="flex h-9 items-center gap-2 rounded-ctl pl-1 pr-2.5 text-sm font-medium hover:bg-subtle">
+                <span className="flex h-7 w-7 items-center justify-center rounded-tag bg-accent-soft text-xs font-semibold text-accent">{user.slice(0, 1).toUpperCase()}</span>
+                <span className="max-w-[9rem] truncate">{user}</span>
               </Link>
-              <button onClick={logout} className="btn-outline py-2 text-sm">Abmelden</button>
+              <LiquidButton variant="ghost" size="icon" onClick={onLogout} aria-label="Abmelden" title="Abmelden">
+                <SignOut className="size-[18px]" />
+              </LiquidButton>
             </>
           ) : (
-            <>
-              <Link href="/login" className="btn-outline hidden py-2 text-sm !text-ink hover:!text-bg sm:inline-flex">Anmelden</Link>
-              <Link href="/login" className="btn-primary py-2 text-sm !text-white">Demo starten</Link>
-            </>
+            <LiquidButton asChild variant="primary" size="default"><Link href="/login">Anmelden</Link></LiquidButton>
           )}
         </div>
       </div>
@@ -68,12 +67,33 @@ export function Header() {
   );
 }
 
+/** Auf dem Smartphone liegt die Navigation unten im Daumenbereich. */
+export function MobileTabBar() {
+  const path = usePathname();
+  return (
+    <nav aria-label="Hauptnavigation" className="fixed inset-x-0 bottom-0 z-header border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+      <div className="grid grid-cols-4">
+        {NAV.map(({ href, label, icon: Icon }) => {
+          const on = isActive(path, href);
+          return (
+            <Link key={href} href={href} aria-current={on ? 'page' : undefined}
+              className={`flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${on ? 'text-accent' : 'text-faint'}`}>
+              <Icon weight={on ? 'fill' : 'regular'} className="h-[22px] w-[22px]" />
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 export function Footer() {
   return (
-    <footer className="border-t-2 border-ink bg-[#201e1d] text-[#c9c5c3]">
-      <div className="wrap flex flex-wrap justify-between gap-3 py-7 text-[13px] leading-normal">
-        <span className="font-extrabold text-[#f3f2f2]">KRYO DEMO</span>
-        <span className="max-w-[720px]">Fiktive Design-Demo. Kein Finanzdienstleister, keine echten Konten, keine Wallet-Verbindung, keine Zahlungsabwicklung. Alle Kurse sind Beispieldaten.</span>
+    <footer className="mt-16 border-t border-line">
+      <div className="wrap flex flex-col gap-3 py-8 text-[13px] text-faint sm:flex-row sm:items-start sm:justify-between">
+        <img src="/brand/auvryn-logo.png" alt="Auvryn" width={91} height={20} className="h-5 w-auto opacity-80" />
+        <p className="max-w-[62ch]">Unabhängiges Konzeptprojekt. Keine echten Konten, kein echtes Geld, keine Zahlungsabwicklung. Kurse sind Beispieldaten.</p>
       </div>
     </footer>
   );
