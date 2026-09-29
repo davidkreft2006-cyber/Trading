@@ -2,13 +2,16 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDownLeft, ArrowUpRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
-import { ASSETS, FUNDABLE, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, type Asset } from '@/lib/data';
+import { ArrowDownLeft, ArrowUpRight, CaretRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
+import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, type Asset } from '@/lib/data';
 import { useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
-import { CoinIcon, EmptyState, Note } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, LiveBadge, Note, PriceChart } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
+
+/** USDT wie Geld mit 2 Nachkommastellen, alles andere mit bis zu 8 */
+const fmtBal = (a: Asset, q: number) => (a === 'USDT' ? nf(q, 2) : fmtQty(q));
 
 /** Gerundete Schnellbeträge mit etwa 100 / 1.000 / 10.000 USD Gegenwert. */
 const quickAmounts = (a: Asset, priceOf: (a: Asset) => number) => [100, 1000, 10000].map(usd => {
@@ -90,11 +93,11 @@ function AddFundsModal({ initial, onClose }: { initial?: { asset: Asset; amount:
   );
 }
 
-function TransferModal({ onClose }: { onClose: () => void }) {
+function TransferModal({ initial, onClose }: { initial?: Asset; onClose: () => void }) {
   const { balances, transfer } = useAccount();
   const owned = ASSETS.filter(a => balances[a] > 0);
   const options: Asset[] = owned.length ? owned : ['USDT'];
-  const held = options[0];
+  const held = initial && options.includes(initial) ? initial : options[0];
   const [asset, setAsset] = useState<Asset>(held);
   const [amount, setAmount] = useState('');
   const [to, setTo] = useState('');
@@ -137,6 +140,94 @@ function TransferModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClose: () => void; onAdd: () => void; onTransfer: () => void }) {
+  const { balances, txs, total } = useAccount();
+  const { coinOf, priceOf, statusOf } = useQuotes();
+  const coin = asset === 'USDT' ? undefined : coinOf(asset);
+  const qty = balances[asset];
+  const value = qty * priceOf(asset);
+  const share = total ? (value / total) * 100 : 0;
+  const history = txs.filter(t => t.asset === asset || (asset === 'USDT' && (t.type === 'buy' || t.type === 'sell'))).slice(0, 6);
+  const btn = 'flex-1 sm:flex-none';
+  return (
+    <Modal title={`${asset} · ${nameOf(asset)}`} onClose={onClose}
+      footer={coin ? (
+        <>
+          <LiquidButton asChild variant="sell" size="lg" className={btn}><Link href={`/trade?pair=${asset}&side=sell`}><ArrowUpRight />Verkaufen</Link></LiquidButton>
+          <LiquidButton asChild variant="buy" size="lg" className={btn}><Link href={`/trade?pair=${asset}&side=buy`}><ArrowDownLeft />Kaufen</Link></LiquidButton>
+        </>
+      ) : (
+        <>
+          <LiquidButton variant="glass" size="lg" className={btn} onClick={onTransfer}><PaperPlaneTilt />Übertragen</LiquidButton>
+          <LiquidButton variant="primary" size="lg" className={btn} onClick={onAdd}><Plus weight="bold" />Guthaben hinzufügen</LiquidButton>
+        </>
+      )}>
+      <div className="flex items-center gap-3">
+        <CoinIcon sym={asset} size="lg" />
+        <div className="flex min-w-0 flex-col">
+          <span className="num text-2xl font-semibold leading-tight tracking-[-0.02em]">{fmtUsd(value)}</span>
+          <span className="num truncate text-[13px] text-muted">{fmtBal(asset, qty)} {asset}</span>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-line py-3">
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-faint">Kurs</dt>
+          <dd className="num text-sm font-medium">{coin ? `${fmtPrice(coin.price)} ${coin.quote}` : '1,00 USD'}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-faint">{coin ? 'Änderung 24h' : 'Art'}</dt>
+          <dd className="text-sm font-medium">{coin ? <Change value={coin.chg} /> : 'Stablecoin'}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-faint">Anteil am Guthaben</dt>
+          <dd className="num text-sm font-medium">{nf(share, 1)} %</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-faint">Kategorie</dt>
+          <dd className="text-sm font-medium">{coin ? categoryLabel(coin.cat) : 'Krypto'}</dd>
+        </div>
+      </dl>
+
+      {coin && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[13px] font-medium text-muted">Kursverlauf</span>
+            <LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} />
+          </div>
+          <PriceChart data={coin.hist} times={coin.times} up={coin.chg >= 0} label={`${coin.sym}/${coin.quote}`} />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        <span className="text-[13px] font-medium text-muted">Letzte Bewegungen</span>
+        {history.length === 0 ? (
+          <p className="py-2 text-sm text-faint">Noch keine Transaktionen mit {asset}.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {history.map(t => {
+              // Für USDT zählt bei Käufen/Verkäufen der bezahlte bzw. erhaltene Betrag
+              const amt = asset === 'USDT' && t.asset !== 'USDT' ? (t.total ?? 0) : t.amount;
+              const label = asset === 'USDT' && t.asset !== 'USDT' ? `${TX_ICON[t.type].label} ${t.asset}` : TX_ICON[t.type].label;
+              return (
+                <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-sm font-medium">{label}</span>
+                    <time className="num text-xs text-faint" dateTime={new Date(t.time).toISOString()}>
+                      {new Date(t.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </time>
+                  </div>
+                  <span className={`num text-sm font-medium ${amt >= 0 ? 'text-up' : 'text-ink'}`}>{amt >= 0 ? '+' : '−'}{fmtBal(asset, Math.abs(amt))}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 const TX_ICON: Record<Tx['type'], { icon: typeof Plus; label: string }> = {
   deposit: { icon: Plus, label: 'Einzahlung' },
   buy: { icon: ArrowDownLeft, label: 'Kauf' },
@@ -165,7 +256,7 @@ export default function WalletPage() {
   const { ready, user, balances, txs, total, resetAll, confirm } = useAccount();
   const { priceOf } = useQuotes();
   const router = useRouter();
-  const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer' } | null>(null);
+  const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer'; asset?: Asset } | { kind: 'asset'; asset: Asset } | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   // Nur beim Laden prüfen: Nach dem Abmelden navigiert der Header selbst zur Startseite.
@@ -219,33 +310,37 @@ export default function WalletPage() {
               Lade eine Währung auf, um zu kaufen, zu verkaufen und zu übertragen.
             </EmptyState>
           ) : (
-            <div role="table" aria-label="Assets">
-              <div role="row" className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px] gap-x-4 border-b border-line bg-subtle/70 px-5 py-2 text-xs font-medium text-faint sm:grid">
+            <div>
+              <div aria-hidden className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px] gap-x-4 border-b border-line bg-subtle/70 px-5 py-2 text-xs font-medium text-faint sm:grid">
                 <span>Asset</span><span className="text-right">Bestand</span><span className="text-right">Kurs</span><span className="text-right">Wert</span><span className="text-right">Anteil</span>
               </div>
-              <div className="divide-y divide-line">
+              <ul className="divide-y divide-line" aria-label="Assets">
                 {rows.map(({ a, v }) => {
                   const share = total ? (v / total) * 100 : 0;
                   return (
-                    <div role="row" key={a} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-4 py-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px] sm:px-5">
+                    <li key={a}>
+                    <button type="button" onClick={() => setModal({ kind: 'asset', asset: a })} aria-label={`${a} ${nameOf(a)}: Details anzeigen`}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-3 text-left transition-colors hover:bg-subtle active:bg-subtle sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px_16px] sm:gap-x-4 sm:px-5">
                       <div className="flex min-w-0 items-center gap-3">
                         <CoinIcon sym={a} />
                         <div className="flex min-w-0 flex-col"><span className="font-semibold leading-tight">{a}</span><span className="truncate text-[13px] text-muted">{nameOf(a)}</span></div>
                       </div>
-                      <span className="num hidden text-right text-sm sm:block">{fmtQty(balances[a])}</span>
+                      <span className="num hidden truncate text-right text-sm sm:block">{fmtBal(a, balances[a])}</span>
                       <span className="num hidden text-right text-sm text-muted sm:block">{a === 'USDT' ? '1,00' : fmtPrice(priceOf(a))}</span>
                       <div className="flex flex-col items-end">
                         <span className="num text-right text-[15px] font-medium">{fmtUsd(v)}</span>
-                        <span className="num text-[13px] text-muted sm:hidden">{fmtQty(balances[a])} {a}</span>
+                        <span className="num text-[13px] text-muted sm:hidden">{fmtBal(a, balances[a])} {a}</span>
                       </div>
                       <div className="hidden flex-col items-end gap-1 sm:flex">
                         <span className="num text-[13px] text-muted">{nf(share, 1)} %</span>
                         <span className="h-1 rounded-full bg-accent" style={{ width: `${Math.max(share, 2) * 0.72}px` }} aria-hidden />
                       </div>
-                    </div>
+                      <CaretRight className="h-4 w-4 text-faint" aria-hidden />
+                    </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           )}
         </section>
@@ -300,7 +395,12 @@ export default function WalletPage() {
       </section>
 
       {modal?.kind === 'add' && <AddFundsModal initial={modal.initial} onClose={() => setModal(null)} />}
-      {modal?.kind === 'transfer' && <TransferModal onClose={() => setModal(null)} />}
+      {modal?.kind === 'transfer' && <TransferModal initial={modal.asset} onClose={() => setModal(null)} />}
+      {modal?.kind === 'asset' && (
+        <AssetModal asset={modal.asset} onClose={() => setModal(null)}
+          onAdd={() => setModal({ kind: 'add', initial: { asset: modal.asset, amount: '' } })}
+          onTransfer={() => setModal({ kind: 'transfer', asset: modal.asset })} />
+      )}
     </div>
   );
 }
