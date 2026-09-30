@@ -7,7 +7,8 @@ import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, 
 import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
-import { Change, CoinIcon, EmptyState, LiveBadge, Note } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, LiveBadge, Note, Pnl } from '@/components/ui/primitives';
+import { openPnl } from '@/lib/pnl';
 import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
@@ -142,12 +143,14 @@ function TransferModal({ initial, onClose }: { initial?: Asset; onClose: () => v
 }
 
 function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClose: () => void; onAdd: () => void; onTransfer: () => void }) {
-  const { balances, txs, total } = useAccount();
+  const { balances, txs, total, positions } = useAccount();
   const { coinOf, priceOf, statusOf } = useQuotes();
   const coin = asset === 'USDT' ? undefined : coinOf(asset);
   useHistory(coin?.sym);
   const qty = balances[asset];
   const value = qty * priceOf(asset);
+  const pos = positions[asset];
+  const open = openPnl(pos, priceOf(asset), qty);
   const share = total ? (value / total) * 100 : 0;
   const history = txs.filter(t => t.asset === asset || (asset === 'USDT' && (t.type === 'buy' || t.type === 'sell'))).slice(0, 6);
   const btn = 'flex-1 sm:flex-none';
@@ -171,6 +174,30 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
           <span className="num truncate text-[13px] text-muted">{fmtBal(asset, qty)} {asset}</span>
         </div>
       </div>
+
+      {coin && (open || pos?.realized) ? (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-ctl border border-line bg-subtle/60 p-3">
+          <div className="col-span-2 flex flex-col gap-0.5">
+            <dt className="text-xs text-faint">Gewinn/Verlust offen (live)</dt>
+            <dd className="text-lg font-semibold">{open ? <Pnl value={open.value} pct={open.pct} /> : '–'}</dd>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-xs text-faint">Ø Einstandskurs</dt>
+            <dd className="num text-sm font-medium">{open ? `${fmtPrice(open.avg)} ${coin.quote}` : '–'}</dd>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-xs text-faint">Einstand</dt>
+            <dd className="num text-sm font-medium">{open ? fmtUsd(open.cost) : '–'}</dd>
+          </div>
+          {!!pos?.realized && (
+            <div className="col-span-2 flex flex-col gap-0.5">
+              <dt className="text-xs text-faint">Realisiert durch Verkäufe</dt>
+              <dd className="text-sm font-medium"><Pnl value={pos.realized} /></dd>
+            </div>
+          )}
+          {open?.partial && <p className="col-span-2 text-xs text-faint">Ein Teil des Bestands wurde ohne Kurs eingezahlt und ist nicht bewertet.</p>}
+        </dl>
+      ) : null}
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-line py-3">
         <div className="flex flex-col gap-0.5">
@@ -257,7 +284,7 @@ function WalletSkeleton() {
 }
 
 export default function WalletPage() {
-  const { ready, user, balances, txs, total } = useAccount();
+  const { ready, user, balances, txs, total, positions, pnl } = useAccount();
   const { priceOf } = useQuotes();
   const router = useRouter();
   const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer'; asset?: Asset } | { kind: 'asset'; asset: Asset } | null>(null);
@@ -282,6 +309,12 @@ export default function WalletPage() {
           <span className="text-[13px] text-muted">Gesamtguthaben von <span className="font-medium text-ink">{user.name}</span></span>
           <span className="num break-words text-[40px] font-semibold leading-none tracking-[-0.03em] sm:text-5xl">{fmtUsd(total)}</span>
           <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT</span>
+          {pnl && (
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+              <span className="flex items-baseline gap-1.5"><span className="text-muted">Gewinn/Verlust offen</span><Pnl value={pnl.value} pct={pnl.pct} className="font-semibold" /></span>
+              {!!pnl.realized && <span className="flex items-baseline gap-1.5"><span className="text-muted">Realisiert</span><Pnl value={pnl.realized} className="font-medium" /></span>}
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap lg:justify-end">
           <LiquidButton variant="primary" size="xl" className="col-span-3 sm:col-auto" onClick={() => openAdd()}><Plus weight="bold" />Guthaben hinzufügen</LiquidButton>
@@ -311,28 +344,27 @@ export default function WalletPage() {
           ) : (
             <div>
               <div aria-hidden className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px] gap-x-4 border-b border-line bg-subtle/70 px-5 py-2 text-xs font-medium text-faint sm:grid">
-                <span>Asset</span><span className="text-right">Bestand</span><span className="text-right">Kurs</span><span className="text-right">Wert</span><span className="text-right">Anteil</span>
+                <span>Asset</span><span className="text-right">Bestand</span><span className="text-right">Kurs</span><span className="text-right">Wert</span><span className="text-right">Gewinn/Verlust</span>
               </div>
               <ul className="divide-y divide-line" aria-label="Assets">
                 {rows.map(({ a, v }) => {
-                  const share = total ? (v / total) * 100 : 0;
+                  const o = a === 'USDT' ? null : openPnl(positions[a], priceOf(a), balances[a]);
                   return (
                     <li key={a}>
                     <button type="button" onClick={() => setModal({ kind: 'asset', asset: a })} aria-label={`${a} ${nameOf(a)}: Details anzeigen`}
-                      className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-3 text-left transition-colors hover:bg-subtle active:bg-subtle sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_88px_16px] sm:gap-x-4 sm:px-5">
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-3 text-left transition-colors hover:bg-subtle active:bg-subtle sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_16px] sm:gap-x-4 sm:px-5">
                       <div className="flex min-w-0 items-center gap-3">
                         <CoinIcon sym={a} />
-                        <div className="flex min-w-0 flex-col"><span className="font-semibold leading-tight">{a}</span><span className="truncate text-[13px] text-muted">{nameOf(a)}</span></div>
+                        <div className="flex min-w-0 flex-col"><span className="font-semibold leading-tight">{a}</span><span className="hidden truncate text-[13px] text-muted sm:block">{nameOf(a)}</span><span className="num truncate text-[13px] text-muted sm:hidden">{fmtBal(a, balances[a])}</span></div>
                       </div>
                       <span className="num hidden truncate text-right text-sm sm:block">{fmtBal(a, balances[a])}</span>
                       <span className="num hidden text-right text-sm text-muted sm:block">{a === 'USDT' ? '1,00' : fmtPrice(priceOf(a))}</span>
                       <div className="flex flex-col items-end">
                         <span className="num text-right text-[15px] font-medium">{fmtUsd(v)}</span>
-                        <span className="num text-[13px] text-muted sm:hidden">{fmtBal(a, balances[a])} {a}</span>
+                        <span className="text-[13px] sm:hidden">{o ? <Pnl value={o.value} pct={o.pct} /> : <span className="text-faint">–</span>}</span>
                       </div>
-                      <div className="hidden flex-col items-end gap-1 sm:flex">
-                        <span className="num text-[13px] text-muted">{nf(share, 1)} %</span>
-                        <span className="h-1 rounded-full bg-accent" style={{ width: `${Math.max(share, 2) * 0.72}px` }} aria-hidden />
+                      <div className="hidden flex-col items-end sm:flex">
+                        {o ? <><Pnl value={o.value} className="text-sm font-medium" /><span className={`num text-xs ${o.value >= 0 ? 'text-up' : 'text-down'}`}>{o.pct >= 0 ? '+' : '−'}{nf(Math.abs(o.pct), 2)} %</span></> : <span className="text-sm text-faint">–</span>}
                       </div>
                       <CaretRight className="h-4 w-4 text-faint" aria-hidden />
                     </button>

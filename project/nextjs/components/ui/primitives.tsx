@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, Info } from '@phosphor-icons/react';
-import { fmtChg, fmtPrice } from '@/lib/data';
+import { fmtChg, fmtPrice, fmtUsd } from '@/lib/data';
 import type { FeedStatus } from '@/lib/quotes';
+import ZoomChart from './zoom-chart';
 
 /** Neutrale Monogramm-Marke je Asset. Bewusst ohne Markenfarben der echten Coins. */
 export function CoinIcon({ sym, size = 'md' }: { sym: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -26,6 +27,17 @@ export function Change({ value, className = '', icon = true }: { value: number; 
   );
 }
 
+/** Gewinn/Verlust in USD mit Vorzeichen, optional mit Prozent. Farbe plus Vorzeichen, nie Farbe allein. */
+export function Pnl({ value, pct, className = '' }: { value: number; pct?: number; className?: string }) {
+  const flat = Math.abs(value) < 0.005;
+  const tone = flat ? 'text-muted' : value > 0 ? 'text-up' : 'text-down';
+  return (
+    <span className={`num whitespace-nowrap ${tone} ${className}`}>
+      {flat ? '±' : value > 0 ? '+' : '−'}{fmtUsd(Math.abs(value))}{pct !== undefined && !flat ? ` (${fmtChg(pct)})` : ''}
+    </span>
+  );
+}
+
 /** Kleine Verlaufslinie für Tabellenzeilen. Rein illustrativ, die Zahl steht daneben. */
 export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]; up: boolean; className?: string }) {
   const pts = useMemo(() => {
@@ -40,15 +52,8 @@ export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]
   );
 }
 
-/**
- * Kursverlauf mit Fadenkreuz und Tooltip.
- * Eine Serie, eine Achse; Raster und Achsenbeschriftung bewusst zurückhaltend.
- */
-const fmtTime = (t: number, dateOnly = false) => new Date(t).toLocaleString('de-DE', dateOnly
-  ? { day: '2-digit', month: '2-digit', year: 'numeric' }
-  : { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export function PriceChart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
+export function PriceChart({ data, up, label, times, unit = 'USD' }: { data: number[]; up: boolean; label: string; times?: number[]; unit?: string }) {
   if (data.length < 2) {
     return (
       <div className="flex h-[clamp(220px,34vw,340px)] flex-col items-center justify-center gap-1 rounded-ctl border border-dashed border-line text-center" role="img" aria-label={`${label}: kein Verlauf verfügbar`}>
@@ -57,71 +62,8 @@ export function PriceChart({ data, up, label, times }: { data: number[]; up: boo
       </div>
     );
   }
-  return <Chart data={data} up={up} label={label} times={times} />;
-}
-
-function Chart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const gid = useId();
-  const W = 600, H = 240, PAD = 8;
-  const min = Math.min(...data), max = Math.max(...data), r = max - min || 1;
-  const x = (i: number) => (i / (data.length - 1)) * W;
-  const y = (v: number) => PAD + (1 - (v - min) / r) * (H - PAD * 2);
-  const line = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const area = `0,${H} ${line} ${W},${H}`;
-  const ticks = [max, min + r / 2, min];
-
-  const onMove = (e: React.PointerEvent) => {
-    const box = ref.current!.getBoundingClientRect();
-    const i = Math.round(((e.clientX - box.left) / box.width) * (data.length - 1));
-    setHover(Math.max(0, Math.min(data.length - 1, i)));
-  };
-  const hi = hover ?? data.length - 1;
-  // Bei langen Zeiträumen (Tageskerzen) nur das Datum zeigen
-  const dateOnly = !!times && times.length > 1 && times[times.length - 1] - times[0] > 60 * 864e5;
-  const leftPct = (hi / (data.length - 1)) * 100;
-
-  return (
-    <figure className="flex flex-col gap-2">
-      <div className="flex">
-        <div ref={ref} className="relative h-[clamp(220px,34vw,340px)] flex-1 touch-none"
-          onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}
-          role="img" aria-label={`${label}: Verlauf von ${fmtPrice(data[0])} auf ${fmtPrice(data[data.length - 1])} USDT`}>
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
-            <defs>
-              <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" className={up ? 'text-up' : 'text-down'} stopColor="currentColor" stopOpacity="0.16" />
-                <stop offset="1" className={up ? 'text-up' : 'text-down'} stopColor="currentColor" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {ticks.map((t, k) => (
-              <line key={k} x1="0" x2={W} y1={y(t)} y2={y(t)} className="stroke-line" strokeWidth="1" strokeDasharray={k === 1 ? '3 4' : undefined} vectorEffect="non-scaling-stroke" />
-            ))}
-            <polygon points={area} fill={`url(#${gid})`} />
-            <polyline points={line} fill="none" className={up ? 'stroke-up' : 'stroke-down'} strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-            {hover !== null && <line x1={x(hi)} x2={x(hi)} y1="0" y2={H} className="stroke-faint" strokeWidth="1" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />}
-          </svg>
-          {/* Punkt als HTML, damit er trotz nicht-proportionaler Skalierung rund bleibt */}
-          <span className={`pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface ${up ? 'bg-up' : 'bg-down'}`}
-            style={{ left: `${leftPct}%`, top: `${(y(data[hi]) / H) * 100}%` }} />
-          {hover !== null && (
-            <div className="pointer-events-none absolute top-0 z-10 rounded-ctl border border-line bg-surface px-2.5 py-1.5 shadow-[0_6px_20px_-8px_rgb(15_20_25/0.25)]"
-              style={{ left: `${leftPct}%`, transform: `translateX(${leftPct > 70 ? 'calc(-100% - 10px)' : '10px'})` }}>
-              <div className="num text-[13px] font-medium text-ink">{fmtPrice(data[hi])} USDT</div>
-              <div className="text-[11px] text-faint">{hi === data.length - 1 ? 'Aktuell' : times?.[hi] ? fmtTime(times[hi], dateOnly) : `vor ${data.length - 1 - hi} Ticks`}</div>
-            </div>
-          )}
-        </div>
-        <div className="relative ml-2 w-16 flex-none" aria-hidden>
-          {ticks.map((t, k) => (
-            <span key={k} className="num absolute right-0 -translate-y-1/2 text-[11px] text-faint" style={{ top: `${(y(t) / H) * 100}%` }}>{fmtPrice(t)}</span>
-          ))}
-        </div>
-      </div>
-      <figcaption className="hint">{times?.length ? `Verlauf seit ${fmtTime(times[0], dateOnly)}` : 'Beispielverlauf'}</figcaption>
-    </figure>
-  );
+  // key: neuer Zoom-Zustand je Instrument und Zeitraum
+  return <ZoomChart key={label} data={data} up={up} label={label} times={times} unit={unit} />;
 }
 
 /** Dezenter Hinweis in Dialogen. */

@@ -90,7 +90,7 @@ export default function RangeChart({ coin }: { coin: Coin }) {
       {loading ? (
         <div className="skeleton h-[clamp(220px,34vw,340px)]" aria-busy="true" aria-label="Verlauf wird geladen" />
       ) : (
-        <PriceChart data={hist} times={times} up={(chg ?? coin.chg) >= 0} label={`${coin.sym}/${coin.quote}, ${range.label}`} />
+        <PriceChart data={hist} times={times} up={(chg ?? coin.chg) >= 0} label={`${coin.sym}/${coin.quote}, ${range.label}`} unit={coin.quote} />
       )}
       <p className="hint">{range.desc}{note ? `. ${note}` : ''}{failed ? '. Verlauf gerade nicht verfügbar, bitte später erneut versuchen.' : ''}</p>
     </div>

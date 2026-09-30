@@ -6,11 +6,12 @@
   - Schreiben: nur über die Datenbank-Funktionen add_funds, execute_trade,
     transfer_out, reset_account (prüfen Beträge und Guthaben serverseitig)
 */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { ASSETS, fmtQty, type Asset, type CoinSym } from './data';
 import { useQuotes } from './quotes';
 import { authError, neon } from './neon';
+import { openPnl, positionsFrom, type Position } from './pnl';
 import ConfirmDialog, { type ConfirmRequest } from '@/components/ConfirmDialog';
 
 export type Balances = Record<Asset, number>;
@@ -37,6 +38,10 @@ interface Ctx {
   balances: Balances;
   txs: Tx[];
   total: number;
+  /** Positionen mit Einstand und realisiertem Gewinn/Verlust (aus dem Verlauf) */
+  positions: Record<string, Position>;
+  /** Offener Gewinn/Verlust aller bewerteten Positionen, live zum aktuellen Kurs */
+  pnl: { value: number; pct: number; cost: number; realized: number } | null;
   signIn: (email: string, password: string) => Promise<Result>;
   signUp: (name: string, email: string, password: string) => Promise<Result>;
   signOut: () => Promise<void>;
@@ -94,7 +99,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const db = neon();
     const [b, t] = await Promise.all([
       db.from('balances').select('asset, amount'),
-      db.from('transactions').select('id, created_at, type, asset, amount, price, total, counterparty').order('created_at', { ascending: false }).limit(200)
+      db.from('transactions').select('id, created_at, type, asset, amount, price, total, counterparty').order('created_at', { ascending: false }).limit(5000)
     ]);
     if (!b.error && b.data) {
       const next = emptyBalances();
@@ -145,9 +150,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, [load]);
 
   const total = ASSETS.reduce((t, a) => t + balances[a] * priceOf(a), 0);
+  const positions = useMemo(() => positionsFrom(txs), [txs]);
+  let pnl: Ctx['pnl'] = null;
+  {
+    let value = 0, cost = 0, realized = 0, any = false;
+    for (const [a, p] of Object.entries(positions)) {
+      realized += p.realized;
+      const o = openPnl(p, priceOf(a as Asset), balances[a as Asset] ?? 0);
+      if (o) { value += o.value; cost += o.cost; any = true; }
+    }
+    if (any || realized) pnl = { value, cost, realized, pct: cost ? (value / cost) * 100 : 0 };
+  }
 
   const value: Ctx = {
-    ready, user, balances, txs, total,
+    ready, user, balances, txs, total, positions, pnl,
     signIn: async (email, password) => {
       const err = await authCall(() => neon().auth.signIn.email({ email: email.trim(), password }));
       if (!err) await applySession().catch(() => {});
@@ -185,7 +201,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       return err === 'E-Mail oder Passwort ist falsch.' ? 'Das aktuelle Passwort ist falsch.' : err;
     },
     addFunds: async (asset, amount) => {
-      const err = await call('add_funds', { p_asset: asset, p_amount: amount });
+      // Aktueller Kurs = Einstandskurs der Einzahlung (für Gewinn/Verlust)
+      const price = priceOf(asset);
+      const err = await call('add_funds', { p_asset: asset, p_amount: amount, ...(asset !== 'USDT' && price > 0 && { p_price: price }) });
       if (!err) toast(`+${fmtQty(amount)} ${asset} gutgeschrieben`);
       return err;
     },

@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
 import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
-import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, Segmented } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, Pnl, Segmented } from '@/components/ui/primitives';
+import { openPnl } from '@/lib/pnl';
 import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import PairPicker from '@/components/PairPicker';
@@ -39,7 +40,7 @@ function PairBar({ active, onPick }: { active: Coin; onPick: () => void }) {
 function Trade() {
   const params = useSearchParams();
   const router = useRouter();
-  const { ready, user, balances, txs, trade, confirm } = useAccount();
+  const { ready, user, balances, txs, trade, confirm, positions } = useAccount();
   const { coins, statusOf } = useQuotes();
   const coin = coins.find(c => c.sym === params.get('pair')) ?? coins[0];
   const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy');
@@ -49,6 +50,7 @@ function Trade() {
   useHistory(coin.sym);
   const buying = side === 'buy';
   const hasPrice = coin.price > 0;
+  const open = user ? openPnl(positions[coin.sym], coin.price, balances[coin.sym]) : null;
   const q = parseAmount(qty);
   const total = Number.isFinite(q) ? q * coin.price : 0;
   const orders = txs.filter(t => t.asset === coin.sym && (t.type === 'buy' || t.type === 'sell')).slice(0, 6);
@@ -141,6 +143,10 @@ function Trade() {
           <dl className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-3"><dt className="text-muted">Verfügbar</dt>
               <dd className="num font-medium">{!ready ? '…' : user ? (buying ? `${fmtQty(balances.USDT)} USDT` : `${fmtQty(balances[coin.sym])} ${coin.sym}`) : 'Anmeldung nötig'}</dd></div>
+            {open && (
+              <div className="flex justify-between gap-3"><dt className="text-muted">Gewinn/Verlust {coin.sym}</dt>
+                <dd className="font-medium"><Pnl value={open.value} pct={open.pct} /></dd></div>
+            )}
             <div className="flex justify-between gap-3"><dt className="text-muted">Preis (Market)</dt><dd className="num font-medium">{fmtPrice(coin.price)} {coin.quote}</dd></div>
           </dl>
           <div className="flex flex-col gap-2">
