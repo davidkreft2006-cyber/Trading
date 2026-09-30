@@ -7,7 +7,8 @@ import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, 
 import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
-import { Change, CoinIcon, EmptyState, LiveBadge, Note, PriceChart } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, LiveBadge, Note } from '@/components/ui/primitives';
+import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 /** USDT wie Geld mit 2 Nachkommastellen, alles andere mit bis zu 8 */
@@ -197,7 +198,7 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
             <span className="text-[13px] font-medium text-muted">Kursverlauf</span>
             <LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} />
           </div>
-          <PriceChart data={coin.hist} times={coin.times} up={coin.chg >= 0} label={`${coin.sym}/${coin.quote}`} />
+          <RangeChart coin={coin} />
           <p className="hint">Kursquelle: {sourceLabel(coin)}</p>
         </div>
       )}

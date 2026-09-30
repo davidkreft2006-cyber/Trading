@@ -44,7 +44,9 @@ export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]
  * Kursverlauf mit Fadenkreuz und Tooltip.
  * Eine Serie, eine Achse; Raster und Achsenbeschriftung bewusst zurückhaltend.
  */
-const fmtTime = (t: number) => new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const fmtTime = (t: number, dateOnly = false) => new Date(t).toLocaleString('de-DE', dateOnly
+  ? { day: '2-digit', month: '2-digit', year: 'numeric' }
+  : { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function PriceChart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
   if (data.length < 2) {
@@ -76,6 +78,8 @@ function Chart({ data, up, label, times }: { data: number[]; up: boolean; label:
     setHover(Math.max(0, Math.min(data.length - 1, i)));
   };
   const hi = hover ?? data.length - 1;
+  // Bei langen Zeiträumen (Tageskerzen) nur das Datum zeigen
+  const dateOnly = !!times && times.length > 1 && times[times.length - 1] - times[0] > 60 * 864e5;
   const leftPct = (hi / (data.length - 1)) * 100;
 
   return (
@@ -105,7 +109,7 @@ function Chart({ data, up, label, times }: { data: number[]; up: boolean; label:
             <div className="pointer-events-none absolute top-0 z-10 rounded-ctl border border-line bg-surface px-2.5 py-1.5 shadow-[0_6px_20px_-8px_rgb(15_20_25/0.25)]"
               style={{ left: `${leftPct}%`, transform: `translateX(${leftPct > 70 ? 'calc(-100% - 10px)' : '10px'})` }}>
               <div className="num text-[13px] font-medium text-ink">{fmtPrice(data[hi])} USDT</div>
-              <div className="text-[11px] text-faint">{hi === data.length - 1 ? 'Aktuell' : times?.[hi] ? fmtTime(times[hi]) : `vor ${data.length - 1 - hi} Ticks`}</div>
+              <div className="text-[11px] text-faint">{hi === data.length - 1 ? 'Aktuell' : times?.[hi] ? fmtTime(times[hi], dateOnly) : `vor ${data.length - 1 - hi} Ticks`}</div>
             </div>
           )}
         </div>
@@ -115,7 +119,7 @@ function Chart({ data, up, label, times }: { data: number[]; up: boolean; label:
           ))}
         </div>
       </div>
-      <figcaption className="hint">{times?.length ? `Verlauf seit ${fmtTime(times[0])}` : 'Beispielverlauf'}</figcaption>
+      <figcaption className="hint">{times?.length ? `Verlauf seit ${fmtTime(times[0], dateOnly)}` : 'Beispielverlauf'}</figcaption>
     </figure>
   );
 }
@@ -152,7 +156,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
         const on = o.value === value;
         return (
           <button key={o.value} type="button" role="radio" aria-checked={on} onClick={() => onChange(o.value)}
-            className={`h-8 rounded-full px-4 text-[13px] font-medium transition-colors duration-150 ${on ? (o.activeClass ?? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_20_25/0.08)]') : 'text-muted hover:text-ink'}`}>
+            className={`h-8 whitespace-nowrap rounded-full px-3 text-[13px] font-medium transition-colors duration-150 sm:px-4 ${on ? (o.activeClass ?? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_20_25/0.08)]') : 'text-muted hover:text-ink'}`}>
             {o.label}
           </button>
         );

@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
 import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
-import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, PriceChart, Segmented } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, Segmented } from '@/components/ui/primitives';
+import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import PairPicker from '@/components/PairPicker';
 import { useHistory, useQuotes } from '@/lib/quotes';
@@ -50,7 +51,6 @@ function Trade() {
   const hasPrice = coin.price > 0;
   const q = parseAmount(qty);
   const total = Number.isFinite(q) ? q * coin.price : 0;
-  const up = coin.chg >= 0;
   const orders = txs.filter(t => t.asset === coin.sym && (t.type === 'buy' || t.type === 'sell')).slice(0, 6);
 
   const setPct = (p: number) => {
@@ -128,7 +128,7 @@ function Trade() {
               </div>
             ))}
           </dl>
-          <PriceChart data={coin.hist} times={coin.times} up={up} label={`${coin.sym}/${coin.quote}`} />
+          <RangeChart coin={coin} />
           <p className="hint -mt-3">Kursquelle: {sourceLabel(coin)}{coin.local ? `, umgerechnet von ${coin.local.ccy} in USD` : ''}</p>
         </section>
 

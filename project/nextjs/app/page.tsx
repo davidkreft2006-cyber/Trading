@@ -6,8 +6,9 @@ import { FEATURED_CRYPTO, FEATURED_STOCKS, fmtPrice, type Category, type CoinSym
 import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount } from '@/lib/AccountContext';
 import MarketTable from '@/components/MarketTable';
-import { Change, CoinIcon, LiveBadge, PriceChart, Sparkline } from '@/components/ui/primitives';
+import { Change, CoinIcon, LiveBadge, Sparkline } from '@/components/ui/primitives';
 import CategoryTabs from '@/components/CategoryTabs';
+import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { ShinyButton } from '@/components/ui/shiny-button';
 
@@ -27,7 +28,6 @@ export default function Home() {
   const cards = tradfi === 'stock' ? pick(FEATURED_STOCKS) : coinsIn(tradfi);
   const btc = coinOf('BTC')!;
   useHistory('BTC');
-  const up = btc.chg >= 0;
   return (
     <>
       <section className="wrap grid items-center gap-10 pb-12 pt-10 md:pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pb-16 lg:pt-16">
@@ -63,7 +63,7 @@ export default function Home() {
               <Change value={btc.chg} className="text-[13px]" />
             </div>
           </div>
-          <PriceChart data={btc.hist} times={btc.times} up={up} label="BTC/USDT" />
+          <RangeChart coin={btc} />
           <div className="mt-4 grid grid-cols-2 gap-2">
             <LiquidButton asChild variant="buy" size="lg" className="w-full"><Link href="/trade?pair=BTC&side=buy">Kaufen</Link></LiquidButton>
             <LiquidButton asChild variant="sell" size="lg" className="w-full"><Link href="/trade?pair=BTC&side=sell">Verkaufen</Link></LiquidButton>
