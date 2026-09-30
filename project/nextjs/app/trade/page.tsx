@@ -2,26 +2,31 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Info, Receipt } from '@phosphor-icons/react';
-import { categoryLabel, coinsIn, fmtPrice, fmtQty, nf, parseAmount, volShort, type Category } from '@/lib/data';
+import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
+import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
 import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, PriceChart, Segmented } from '@/components/ui/primitives';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
-import CategoryTabs from '@/components/CategoryTabs';
-import { useQuotes } from '@/lib/quotes';
+import PairPicker from '@/components/PairPicker';
+import { useHistory, useQuotes } from '@/lib/quotes';
 
-function PairBar({ active, cat, onPick }: { active: string; cat: Category; onPick: () => void }) {
-  const { coins } = useQuotes();
+/** Schnellauswahl: beliebte Paare der Kategorie (nach Volumen), das aktive immer dabei */
+function PairBar({ active, onPick }: { active: Coin; onPick: () => void }) {
+  const { coins, coinOf } = useQuotes();
+  const featured = active.cat === 'crypto' ? FEATURED_CRYPTO : active.cat === 'stock' ? FEATURED_STOCKS : [];
+  const byVol = coins.filter(c => c.cat === active.cat && c.price > 0).sort((a, b) => b.volNum - a.volNum);
+  const top = [...new Set<string>([...featured, ...byVol.map(c => c.sym)])].slice(0, 10);
+  const list = (top.includes(active.sym) ? top : [active.sym, ...top.slice(0, 9)]).map(s => coinOf(s)!);
   return (
-    <nav aria-label="Handelspaar wählen" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
+    <nav aria-label="Beliebte Paare" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
       <div className="flex min-w-max gap-1.5">
-        {coins.filter(c => c.cat === cat).map(c => {
-          const on = c.sym === active;
+        {list.map(c => {
+          const on = c.sym === active.sym;
           return (
-            <Link key={c.sym} href={`/trade?pair=${c.sym}`} onClick={onPick} aria-current={on ? 'page' : undefined}
+            <Link key={c.sym} href={`/trade?pair=${encodeURIComponent(c.sym)}`} onClick={onPick} aria-current={on ? 'page' : undefined}
               className={`flex h-9 items-center gap-2 rounded-full border px-3.5 text-[13px] font-medium transition-colors ${on ? 'border-ink bg-surface text-ink' : 'border-line text-muted hover:border-line-strong hover:text-ink'}`}>
               {c.sym}
-              <Change value={c.chg} icon={false} className="text-xs" />
+              {c.price > 0 && <Change value={c.chg} icon={false} className="text-xs" />}
             </Link>
           );
         })}
@@ -39,7 +44,10 @@ function Trade() {
   const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy');
   const [qty, setQty] = useState('');
   const [err, setErr] = useState('');
+  const [picker, setPicker] = useState(false);
+  useHistory(coin.sym);
   const buying = side === 'buy';
+  const hasPrice = coin.price > 0;
   const q = parseAmount(qty);
   const total = Number.isFinite(q) ? q * coin.price : 0;
   const up = coin.chg >= 0;
@@ -47,6 +55,7 @@ function Trade() {
 
   const setPct = (p: number) => {
     if (!user) return setErr('Bitte zuerst anmelden.');
+    if (!hasPrice) return;
     const max = buying ? balances.USDT / coin.price : balances[coin.sym];
     const v = Math.floor(max * p / 100 * 1e6) / 1e6;
     setQty(v > 0 ? String(v).replace('.', ',') : '');
@@ -55,6 +64,7 @@ function Trade() {
 
   const submit = () => {
     if (!user) return router.push(`/login?next=${encodeURIComponent(`/trade?pair=${coin.sym}`)}`);
+    if (!hasPrice) return setErr(`Für ${coin.sym} ist gerade kein Kurs verfügbar. Bitte später erneut versuchen.`);
     if (!(q > 0)) return setErr('Bitte eine Menge größer als 0 eingeben.');
     if (buying && total > balances.USDT + 1e-9) return setErr('Nicht genügend USDT. Lade in der Wallet Guthaben auf.');
     if (!buying && q > balances[coin.sym] + 1e-12) return setErr(`Nicht genügend ${coin.sym}.`);
@@ -73,18 +83,26 @@ function Trade() {
   };
 
   const stats = [
-    ['24h Hoch', fmtPrice(Math.max(...coin.hist, coin.price))],
-    ['24h Tief', fmtPrice(Math.min(...coin.hist, coin.price))],
-    ['Volumen 24h', volShort(coin)],
+    ['24h Hoch', hasPrice ? fmtPrice(Math.max(...coin.hist, coin.price)) : '–'],
+    ['24h Tief', hasPrice ? fmtPrice(Math.min(...coin.hist, coin.price)) : '–'],
+    coin.local ? ['Börsenkurs', `${fmtPrice(coin.local.price)} ${coin.local.ccy}`] : ['Volumen 24h', volShort(coin)],
     ['Dein Bestand', user && ready ? `${fmtQty(balances[coin.sym])} ${coin.sym}` : 'Nicht angemeldet']
   ];
 
   return (
     <div className="wrap flex flex-col gap-5 pt-6 md:pt-8">
+      {picker && (
+        <PairPicker initialCat={coin.cat} active={coin.sym} onClose={() => setPicker(false)}
+          onPick={c => { setPicker(false); setQty(''); setErr(''); router.push(`/trade?pair=${encodeURIComponent(c.sym)}`); }} />
+      )}
       <div className="flex flex-col gap-3">
-        <CategoryTabs value={coin.cat} withAll={false}
-          onChange={c => { if (c !== 'all' && c !== coin.cat) { setQty(''); setErr(''); router.push(`/trade?pair=${coinsIn(c)[0].sym}`); } }} />
-        <PairBar active={coin.sym} cat={coin.cat} onPick={() => { setQty(''); setErr(''); }} />
+        <LiquidButton variant="glass" size="lg" className="self-start pl-2 pr-4" onClick={() => setPicker(true)} aria-haspopup="dialog">
+          <CoinIcon sym={coin.sym} size="sm" />
+          <span className="font-semibold">{coin.sym}<span className="font-normal text-faint">/{coin.quote}</span></span>
+          <span className="text-faint">Paar wechseln</span>
+          <CaretDown weight="bold" />
+        </LiquidButton>
+        <PairBar active={coin} onPick={() => { setQty(''); setErr(''); }} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:items-start">
@@ -99,7 +117,7 @@ function Trade() {
             </div>
             <div className="flex items-baseline gap-3">
               <span className="num text-[28px] font-semibold leading-none"><FlashValue value={coin.price}>{fmtPrice(coin.price)}</FlashValue></span>
-              <Change value={coin.chg} className="text-sm" />
+              {hasPrice && <Change value={coin.chg} className="text-sm" />}
             </div>
           </div>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-line py-3 sm:grid-cols-4">
@@ -111,6 +129,7 @@ function Trade() {
             ))}
           </dl>
           <PriceChart data={coin.hist} times={coin.times} up={up} label={`${coin.sym}/${coin.quote}`} />
+          <p className="hint -mt-3">Kursquelle: {sourceLabel(coin)}{coin.local ? `, umgerechnet von ${coin.local.ccy} in USD` : ''}</p>
         </section>
 
         <aside aria-label="Order-Ticket" className="panel flex flex-col gap-4 p-4 sm:p-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
@@ -143,7 +162,7 @@ function Trade() {
           </div>
           {err && <p role="alert" className="-mt-1 text-[13px] font-medium text-down">{err}</p>}
           {user || !ready ? (
-            <LiquidButton variant={buying ? 'buy' : 'sell'} size="xl" className="w-full" onClick={submit}>
+            <LiquidButton variant={buying ? 'buy' : 'sell'} size="xl" className="w-full" onClick={submit} disabled={!hasPrice}>
               {coin.sym} {buying ? 'kaufen' : 'verkaufen'}
             </LiquidButton>
           ) : (
@@ -151,7 +170,7 @@ function Trade() {
           )}
           <p className="flex gap-2 text-[13px] leading-snug text-faint">
             <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
-            Market-Order zum angezeigten Kurs{coin.quote === 'USD' ? ', abgerechnet in USDT (1 USDT = 1 USD)' : ''}. Vor der Ausführung siehst du eine Übersicht.
+            {hasPrice ? 'Market-Order zum angezeigten Kurs' : 'Handel möglich, sobald ein Live-Kurs vorliegt'}{hasPrice ? `${coin.quote === 'USD' ? ', abgerechnet in USDT (1 USDT = 1 USD)' : ''}. Vor der Ausführung siehst du eine Übersicht.` : '.'}
           </p>
         </aside>
         <section className="panel overflow-hidden lg:col-start-1 lg:row-start-2">

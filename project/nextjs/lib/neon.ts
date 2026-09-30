@@ -28,6 +28,7 @@ export function authError(err: unknown): string {
   const msg = (e.message ?? '').toLowerCase();
   const map: [RegExp | string, string][] = [
     ['INVALID_EMAIL_OR_PASSWORD', 'E-Mail oder Passwort ist falsch.'],
+    ['INVALID_PASSWORD', 'Das aktuelle Passwort ist falsch.'],
     ['USER_ALREADY_EXISTS', 'Für diese E-Mail gibt es bereits ein Konto.'],
     ['USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL', 'Für diese E-Mail gibt es bereits ein Konto.'],
     ['PASSWORD_TOO_SHORT', 'Das Passwort muss mindestens 8 Zeichen haben.'],
@@ -41,6 +42,7 @@ export function authError(err: unknown): string {
   ];
   for (const [k, v] of map) if (code === k) return v;
   if (msg.includes('invalid email or password')) return 'E-Mail oder Passwort ist falsch.';
+  if (msg === 'invalid password') return 'Das aktuelle Passwort ist falsch.';
   if (msg.includes('already exists')) return 'Für diese E-Mail gibt es bereits ein Konto.';
   if (msg.includes('password') && msg.includes('short')) return 'Das Passwort muss mindestens 8 Zeichen haben.';
   if (msg.includes('otp') || msg.includes('code')) return 'Der Code ist ungültig oder abgelaufen.';

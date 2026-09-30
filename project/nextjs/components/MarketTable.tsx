@@ -10,11 +10,16 @@ type SortKey = 'sym' | 'price' | 'chg' | 'volNum';
 // Mobil: Paar | Kurs + 24h. Ab md: plus Verlauf und Volumen. Ab lg: plus Handeln.
 const cols = 'grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)_112px_minmax(0,1fr)] lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)_128px_minmax(0,1fr)_96px] items-center gap-x-4';
 
+const PAGE = 50;
+
 export default function MarketTable({ coins, sortable = false, onReset }: { coins: Coin[]; sortable?: boolean; onReset?: () => void }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
-  const rows = sort
-    ? [...coins].sort((a, b) => (sort.key === 'sym' ? a.sym.localeCompare(b.sym) : a[sort.key] - b[sort.key]) * sort.dir)
+  const [limit, setLimit] = useState(PAGE);
+  // Ohne Kurs immer ans Ende, egal wie sortiert wird
+  const sorted = sort
+    ? [...coins].sort((a, b) => (+!a.price - +!b.price) || (sort.key === 'sym' ? a.sym.localeCompare(b.sym) : a[sort.key] - b[sort.key]) * sort.dir)
     : coins;
+  const rows = sorted.slice(0, limit);
 
   const Head = ({ k, children, align = 'right', className = '' }: { k: SortKey; children: string; align?: 'left' | 'right'; className?: string }) => {
     const on = sort?.key === k;
@@ -47,7 +52,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
       {rows.length === 0 && (
         <EmptyState icon={<MagnifyingGlass className="h-5 w-5" />} title="Kein Paar gefunden"
           action={onReset && <LiquidButton variant="glass" size="sm" onClick={onReset}>Suche zurücksetzen</LiquidButton>}>
-          Versuche ein Kürzel wie BTC oder AAPL oder einen Namen wie Gold.
+          Versuche ein Kürzel wie BTC oder AAPL, einen Namen wie Gold oder eine Kennung wie SAP.DE.
         </EmptyState>
       )}
       <div className="divide-y divide-line">
@@ -62,7 +67,7 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
             </div>
             <div className="flex flex-col items-end md:contents">
               <span className="num text-right text-[15px] font-medium"><FlashValue value={c.price}>{fmtPrice(c.price)}</FlashValue></span>
-              <Change value={c.chg} className="text-[13px] md:text-sm" />
+              {c.price ? <Change value={c.chg} className="text-[13px] md:text-sm" /> : <span className="text-right text-[13px] text-faint md:text-sm">–</span>}
             </div>
             <div className="hidden justify-end md:flex"><Sparkline data={c.hist} up={c.chg >= 0} className="h-8 w-full max-w-[112px]" /></div>
             <span className="num hidden text-right text-sm text-muted md:block">{volShort(c)}</span>
@@ -72,6 +77,13 @@ export default function MarketTable({ coins, sortable = false, onReset }: { coin
           </Link>
         ))}
       </div>
+      {sorted.length > rows.length && (
+        <div className="border-t border-line px-4 py-3 sm:px-5">
+          <LiquidButton variant="glass" size="sm" className="w-full sm:w-auto" onClick={() => setLimit(l => l + PAGE)}>
+            Weitere {Math.min(PAGE, sorted.length - rows.length)} anzeigen <span className="text-faint">({rows.length} von {sorted.length})</span>
+          </LiquidButton>
+        </div>
+      )}
     </div>
   );
 }

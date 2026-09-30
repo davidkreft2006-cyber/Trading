@@ -29,6 +29,7 @@ export function Change({ value, className = '', icon = true }: { value: number; 
 /** Kleine Verlaufslinie für Tabellenzeilen. Rein illustrativ, die Zahl steht daneben. */
 export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]; up: boolean; className?: string }) {
   const pts = useMemo(() => {
+    if (data.length < 2) return '';
     const min = Math.min(...data), max = Math.max(...data), r = max - min || 1;
     return data.map((v, i) => `${((i / (data.length - 1)) * 100).toFixed(2)},${(30 - ((v - min) / r) * 28 - 1).toFixed(2)}`).join(' ');
   }, [data]);
@@ -46,6 +47,18 @@ export function Sparkline({ data, up, className = 'h-8 w-24' }: { data: number[]
 const fmtTime = (t: number) => new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function PriceChart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
+  if (data.length < 2) {
+    return (
+      <div className="flex h-[clamp(220px,34vw,340px)] flex-col items-center justify-center gap-1 rounded-ctl border border-dashed border-line text-center" role="img" aria-label={`${label}: kein Verlauf verfügbar`}>
+        <span className="text-sm font-medium text-muted">Noch kein Kursverlauf</span>
+        <span className="text-[13px] text-faint">Der Verlauf erscheint, sobald Live-Kurse geladen sind.</span>
+      </div>
+    );
+  }
+  return <Chart data={data} up={up} label={label} times={times} />;
+}
+
+function Chart({ data, up, label, times }: { data: number[]; up: boolean; label: string; times?: number[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const gid = useId();

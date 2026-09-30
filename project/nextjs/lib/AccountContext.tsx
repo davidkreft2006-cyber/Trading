@@ -42,6 +42,8 @@ interface Ctx {
   signOut: () => Promise<void>;
   requestPasswordCode: (email: string) => Promise<Result>;
   resetPassword: (email: string, code: string, password: string) => Promise<Result>;
+  updateName: (name: string) => Promise<Result>;
+  changePassword: (current: string, next: string) => Promise<Result>;
   addFunds: (asset: Asset, amount: number) => Promise<Result>;
   /** price: Kurs, der dem Nutzer in der Bestätigung angezeigt wurde */
   trade: (side: 'buy' | 'sell', sym: CoinSym, qty: number, price: number) => Promise<Result>;
@@ -169,6 +171,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Direkt mit dem neuen Passwort anmelden
       if (!(await authCall(() => neon().auth.signIn.email({ email: email.trim(), password })))) await applySession().catch(() => {});
       return null;
+    },
+    updateName: async name => {
+      const err = await authCall(() => neon().auth.updateUser({ name: name.trim() }));
+      if (!err) { setUser(u => (u ? { ...u, name: name.trim() } : u)); toast('Name gespeichert'); }
+      return err;
+    },
+    changePassword: async (current, next) => {
+      // Andere Geräte werden dabei abgemeldet
+      const err = await authCall(() => neon().auth.changePassword({ currentPassword: current, newPassword: next, revokeOtherSessions: true }));
+      if (!err) toast('Passwort geändert');
+      // Hier kann nur das aktuelle Passwort falsch sein, nicht die E-Mail
+      return err === 'E-Mail oder Passwort ist falsch.' ? 'Das aktuelle Passwort ist falsch.' : err;
     },
     addFunds: async (asset, amount) => {
       const err = await call('add_funds', { p_asset: asset, p_amount: amount });

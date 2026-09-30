@@ -50,8 +50,9 @@ export function Header() {
             <span className="skeleton h-9 w-28" aria-hidden />
           ) : user ? (
             <>
-              <Link href="/wallet" className="flex h-9 items-center gap-2 rounded-ctl pl-1 pr-2.5 text-sm font-medium hover:bg-subtle">
-                <span className="flex h-7 w-7 items-center justify-center rounded-tag bg-accent-soft text-xs font-semibold text-accent">{user.name.slice(0, 1).toUpperCase()}</span>
+              <Link href="/settings" aria-label={`${user.name}: Einstellungen`} aria-current={path.startsWith('/settings') ? 'page' : undefined}
+                className={`flex h-9 items-center gap-2 rounded-full pl-1 pr-3 text-sm font-medium transition-colors hover:bg-subtle ${path.startsWith('/settings') ? 'bg-subtle' : ''}`}>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent ring-1 ring-inset ring-accent/40">{user.name.slice(0, 1).toUpperCase()}</span>
                 <span className="max-w-[9rem] truncate">{user.name}</span>
               </Link>
               <LiquidButton variant="ghost" size="icon" onClick={onLogout} aria-label="Abmelden" title="Abmelden">

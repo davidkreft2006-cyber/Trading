@@ -2,9 +2,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDownLeft, ArrowUpRight, CaretRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Trash, Wallet as WalletIcon } from '@phosphor-icons/react';
-import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, type Asset } from '@/lib/data';
-import { useQuotes } from '@/lib/quotes';
+import { ArrowDownLeft, ArrowUpRight, CaretRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Wallet as WalletIcon } from '@phosphor-icons/react';
+import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, sourceLabel, type Asset } from '@/lib/data';
+import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
 import { Change, CoinIcon, EmptyState, LiveBadge, Note, PriceChart } from '@/components/ui/primitives';
@@ -144,6 +144,7 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
   const { balances, txs, total } = useAccount();
   const { coinOf, priceOf, statusOf } = useQuotes();
   const coin = asset === 'USDT' ? undefined : coinOf(asset);
+  useHistory(coin?.sym);
   const qty = balances[asset];
   const value = qty * priceOf(asset);
   const share = total ? (value / total) * 100 : 0;
@@ -174,10 +175,11 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
         <div className="flex flex-col gap-0.5">
           <dt className="text-xs text-faint">Kurs</dt>
           <dd className="num text-sm font-medium">{coin ? `${fmtPrice(coin.price)} ${coin.quote}` : '1,00 USD'}</dd>
+          {coin?.local && <dd className="num text-xs text-faint">{fmtPrice(coin.local.price)} {coin.local.ccy}</dd>}
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="text-xs text-faint">{coin ? 'Änderung 24h' : 'Art'}</dt>
-          <dd className="text-sm font-medium">{coin ? <Change value={coin.chg} /> : 'Stablecoin'}</dd>
+          <dd className="text-sm font-medium">{coin ? (coin.price ? <Change value={coin.chg} /> : '–') : 'Stablecoin'}</dd>
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="text-xs text-faint">Anteil am Guthaben</dt>
@@ -196,6 +198,7 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
             <LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} />
           </div>
           <PriceChart data={coin.hist} times={coin.times} up={coin.chg >= 0} label={`${coin.sym}/${coin.quote}`} />
+          <p className="hint">Kursquelle: {sourceLabel(coin)}</p>
         </div>
       )}
 
@@ -253,7 +256,7 @@ function WalletSkeleton() {
 }
 
 export default function WalletPage() {
-  const { ready, user, balances, txs, total, resetAll, confirm } = useAccount();
+  const { ready, user, balances, txs, total } = useAccount();
   const { priceOf } = useQuotes();
   const router = useRouter();
   const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer'; asset?: Asset } | { kind: 'asset'; asset: Asset } | null>(null);
@@ -270,11 +273,6 @@ export default function WalletPage() {
   const shownTxs = showAll ? txs : txs.slice(0, 8);
   const openAdd = (initial?: { asset: Asset; amount: string }) => setModal({ kind: 'add', initial });
 
-  const askReset = () => confirm({
-    title: 'Guthaben und Verlauf löschen?', label: 'Endgültig löschen', tone: 'danger',
-    lines: [{ k: 'Positionen', v: String(rows.length) }, { k: 'Transaktionen', v: String(txs.length) }, { k: 'Konto', v: user.email }],
-    onConfirm: () => { void resetAll(); }
-  });
 
   return (
     <div className="wrap flex flex-col gap-5 pt-6 md:pt-8">
@@ -386,13 +384,6 @@ export default function WalletPage() {
         </section>
       </div>
 
-      <section className="flex flex-col gap-3 rounded-panel border border-dashed border-line-strong px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-0.5">
-          <strong className="text-sm font-semibold">Guthaben zurücksetzen</strong>
-          <p className="max-w-[60ch] text-[13px] text-muted">Löscht alle Guthaben und Transaktionen in deinem Konto. Das Konto selbst bleibt bestehen.</p>
-        </div>
-        <LiquidButton variant="danger" size="sm" className="self-start sm:self-auto" onClick={askReset}><Trash />Zurücksetzen</LiquidButton>
-      </section>
 
       {modal?.kind === 'add' && <AddFundsModal initial={modal.initial} onClose={() => setModal(null)} />}
       {modal?.kind === 'transfer' && <TransferModal initial={modal.asset} onClose={() => setModal(null)} />}

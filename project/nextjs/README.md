@@ -20,22 +20,31 @@ Dann http://localhost:3000 öffnen. Produktions-Build: `npm run build && npm sta
 - `/login` Anmelden mit E-Mail und Passwort
 - `/register` Konto anlegen (Name, E-Mail, Passwort)
 - `/forgot-password` Passwort zurücksetzen per 6-stelligem E-Mail-Code
-- `/wallet` Gesamtguthaben, Assets, Transaktionsverlauf, „Guthaben hinzufügen“, Übertragen, Zurücksetzen
+- `/wallet` Gesamtguthaben, Assets (antippen für Details), Transaktionsverlauf, „Guthaben hinzufügen“, Übertragen
+- `/settings` Einstellungen (über Profilbild/Name im Header): Name, Passwort ändern, Abmelden, Guthaben zurücksetzen
 - `/markets` Alle Märkte mit Kategorien (Krypto, Aktien, ETFs, Rohstoffe), Filter und Suche; per `?cat=stock|etf|commodity|crypto` direkt ansteuerbar
-- `/trade?pair=BTC` Chart + Kaufen/Verkaufen (Simulation)
+- `/trade?pair=BTC` Chart + Kaufen/Verkaufen, Paarwahl mit Suche
 
 Die Oberfläche tritt wie ein normales Produkt auf, ohne Demo-Banner. Hinweise, dass kein echtes Geld im Spiel ist, stehen im Dialog „Guthaben hinzufügen“ („Ohne realen Gegenwert“) und bei jeder Einzahlung im Transaktionsverlauf („Manuell aufgeladen“). Kaufen, Verkaufen und Zurücksetzen zeigen vorher eine Übersicht zur Bestätigung.
 
 ## Anlageklassen und Kurse
 
-8 Kryptowährungen, 6 Aktien, 4 ETFs, 3 Rohstoffe (`lib/data.ts`). Aktien, ETFs und Rohstoffe notieren in USD und werden mit USDT gekauft (1 USDT = 1 USD). Aufladen geht nur mit USDT und Krypto (`FUNDABLE`).
+99 Kryptowährungen (plus USDT als Abrechnungswährung), 100 Aktien (USA, Europa, Asien), 4 ETFs, 3 Rohstoffe, definiert in `lib/data.ts`. Alles wird mit USDT gekauft (1 USDT = 1 USD). Aufladen geht nur mit USDT und 8 großen Coins (`FUNDABLE`). Auf der Startseite stehen zuerst BTC, ETH, SOL, XRP sowie NVIDIA, Apple, Microsoft, Tesla; alles andere unter „Märkte“ (Suche, Kategorien, Gewinner/Verlierer, Region bei Aktien, 50 Zeilen je Seite).
+
+**Eindeutige Kennungen:** Das Anzeige-Kürzel (`sym`) ist zugleich der Schlüssel in der Datenbank. Für die Kursabfrage hat jedes Instrument zusätzlich die Kennung des Anbieters (`ids`), weil Kürzel je Börse bzw. Coin nicht eindeutig sind:
+
+- Krypto: CoinGecko-ID (z. B. `avalanche-2`, `fetch-ai`) und, wo vorhanden, das Binance-Paar (`AVAXUSDT`)
+- Aktien, ETFs, Rohstoffe: Yahoo-Symbol mit Börsensuffix (`SAP.DE`, `NOVO-B.CO`, `7203.T`, `BRK-B`, `GC=F`)
+
+Die Suche findet auch diese Kennungen. Auf der Handelsseite und in der Asset-Ansicht steht die verwendete Kursquelle.
 
 Echte Kurse (`lib/quotes.tsx`, ohne API-Schlüssel):
 
-- **Krypto:** Binance-Marktdaten direkt im Browser. REST (`data-api.binance.vision`) für Startwerte und 24h-Verlauf (15-Min-Kerzen), WebSocket (`data-stream.binance.vision`) für sekündliche Updates, bei Ausfall REST-Abfrage alle 15 s.
-- **Aktien, ETFs, Rohstoffe:** Route `app/api/quotes/route.ts` holt den Chart-Endpunkt von Yahoo Finance serverseitig (Yahoo erlaubt keine Browser-Abfragen); 60 s CDN-Cache. Gold/Silber/Brent als Futures (`GC=F`, `SI=F`, `BZ=F`). Kurse können bis zu 15 Min. verzögert sein.
-- **Ausfall:** Fehlt eine Quelle, bleiben die Beispielwerte aus `lib/data.ts` stehen, der Hinweis zeigt „Beispielkurse“.
+- **Krypto:** `app/api/crypto/route.ts` holt alle Coins in einer Abfrage von CoinGecko (`/coins/markets` inkl. 24h-Verlauf), 60 s CDN-Cache; optional `COINGECKO_API_KEY` (Demo-Key) für ein höheres Limit. Coins mit Binance-Paar zusätzlich direkt im Browser: REST (`data-api.binance.vision`, paketweise, damit ein nicht gelistetes Paar nicht alles blockiert) und WebSocket (`data-stream.binance.vision`) für sekündliche Updates. Detailverlauf (15-Min-Kerzen) wird nur für das gerade angesehene Instrument geladen.
+- **Aktien, ETFs, Rohstoffe:** `app/api/quotes/route.ts` holt den Chart-Endpunkt von Yahoo Finance serverseitig (max. 16 Anfragen gleichzeitig), 60 s CDN-Cache. Nicht-USD-Börsen werden mit aktuellen Devisenkursen (`EURUSD=X` usw., London in Pence) in USD umgerechnet; der Börsenkurs in Originalwährung wird zusätzlich angezeigt. Kurse können bis zu 15 Min. verzögert sein.
+- **Ausfall:** Die ursprünglichen 20 Instrumente haben Beispielwerte als Ausweichkurs. Alle anderen zeigen „–“ und sind erst handelbar, wenn ein Live-Kurs da ist.
 - Käufe/Verkäufe laufen zum Kurs, der in der Bestätigung angezeigt wurde.
+- Neue Instrumente: in `lib/data.ts` eintragen **und** in der Datenbank-Funktion `app_private.assets()` ergänzen (Liste erlaubter Assets).
 
 ## Designsystem
 

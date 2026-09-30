@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, HardDrives, Plus, UserCircle, ArrowsLeftRight } from '@phosphor-icons/react';
-import { fmtPrice, type Category } from '@/lib/data';
-import { useQuotes } from '@/lib/quotes';
+import { FEATURED_CRYPTO, FEATURED_STOCKS, fmtPrice, type Category, type CoinSym } from '@/lib/data';
+import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount } from '@/lib/AccountContext';
 import MarketTable from '@/components/MarketTable';
 import { Change, CoinIcon, LiveBadge, PriceChart, Sparkline } from '@/components/ui/primitives';
@@ -23,7 +23,10 @@ export default function Home() {
   const [tradfi, setTradfi] = useState<Category>('stock');
   const { coins, coinOf, statusOf } = useQuotes();
   const coinsIn = (cat: Category) => coins.filter(c => c.cat === cat);
+  const pick = (syms: CoinSym[]) => syms.map(s => coinOf(s)!).filter(Boolean);
+  const cards = tradfi === 'stock' ? pick(FEATURED_STOCKS) : coinsIn(tradfi);
   const btc = coinOf('BTC')!;
+  useHistory('BTC');
   const up = btc.chg >= 0;
   return (
     <>
@@ -78,7 +81,7 @@ export default function Home() {
             Alle {coinsIn('crypto').length} Paare<ArrowRight weight="bold" className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <MarketTable coins={coinsIn('crypto').slice(0, 5)} />
+        <MarketTable coins={pick(FEATURED_CRYPTO)} />
       </section>
 
       <section className="wrap flex flex-col gap-4 py-8" aria-labelledby="tradfi-h">
@@ -88,12 +91,12 @@ export default function Home() {
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">Mit USDT handeln wie Krypto. Kurse in USD. <LiveBadge status={statusOf(tradfi)} delayed /></p>
           </div>
           <Link href={`/markets?cat=${tradfi}`} className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent hover:underline">
-            Alle ansehen<ArrowRight weight="bold" className="h-3.5 w-3.5" />
+            {tradfi === 'stock' ? `Alle ${coinsIn('stock').length} Aktien` : 'Alle ansehen'}<ArrowRight weight="bold" className="h-3.5 w-3.5" />
           </Link>
         </div>
         <CategoryTabs value={tradfi} onChange={c => c !== 'all' && setTradfi(c)} withAll={false} only={['stock', 'etf', 'commodity']} />
-        <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-          {coinsIn(tradfi).map(c => (
+        <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+          {cards.map(c => (
             <li key={c.sym}>
               <Link href={`/trade?pair=${c.sym}`} className="panel group flex h-full flex-col gap-3 p-3.5 transition-colors hover:border-line-strong hover:bg-subtle/60 sm:p-4">
                 <div className="flex items-center gap-2.5">
@@ -117,7 +120,7 @@ export default function Home() {
       <section className="wrap grid gap-8 py-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-14">
         <div className="flex flex-col gap-3 lg:sticky lg:top-28 lg:self-start">
           <h2 className="text-2xl font-semibold tracking-[-0.02em]">So funktioniert Auvryn</h2>
-          <p className="max-w-[46ch] text-muted">Ohne Registrierung und ohne Server. Alles läuft direkt in deinem Browser.</p>
+          <p className="max-w-[46ch] text-muted">Konto anlegen, Guthaben aufladen, loslegen. Kurse kommen live von Binance, CoinGecko und Yahoo Finance.</p>
         </div>
         <ol className="grid gap-px overflow-hidden rounded-panel border border-line bg-line sm:grid-cols-2">
           {STEPS.map(({ icon: Icon, t, d }) => (

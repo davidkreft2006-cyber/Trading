@@ -4,7 +4,7 @@ import { X } from '@phosphor-icons/react';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 export default function Modal({ title, description, onClose, children, footer, size = 'md' }: {
-  title: string; description?: string; onClose: () => void; children: ReactNode; footer: ReactNode; size?: 'sm' | 'md';
+  title: string; description?: string; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: 'sm' | 'md';
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -31,8 +31,10 @@ export default function Modal({ title, description, onClose, children, footer, s
             <X />
           </LiquidButton>
         </div>
-        <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4">{children}</div>
-        <div className="flex flex-col-reverse gap-2 border-t border-line bg-subtle/60 px-5 py-3.5 pb-[calc(14px+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-3.5">{footer}</div>
+        <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4 [&>*]:shrink-0">{children}</div>
+        {footer
+          ? <div className="flex flex-col-reverse gap-2 border-t border-line bg-subtle/60 px-5 py-3.5 pb-[calc(14px+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-3.5">{footer}</div>
+          : <div className="pb-[env(safe-area-inset-bottom)]" />}
       </div>
     </div>
   );
