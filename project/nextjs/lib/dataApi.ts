@@ -36,21 +36,46 @@ const usable = (jwt: string | null | undefined) => {
   return c?.sub && (!c.exp || c.exp * 1000 > Date.now() + 5000) ? { jwt: jwt!, exp: (c.exp ?? Date.now() / 1000 + 300) * 1000 } : null;
 };
 
+/** Was beim letzten Token-Abruf passiert ist (ohne das Token selbst), für die Fehlersuche */
+let diag: Record<string, unknown> = {};
+const safeClaims = (jwt: string | null | undefined) => {
+  const c = claims(jwt) as Record<string, unknown> | null;
+  return c && { sub: c.sub, role: c.role, exp: c.exp, iat: c.iat, iss: c.iss, aud: c.aud };
+};
+
 async function fetchJwt(): Promise<string | null> {
+  diag = { at: new Date().toISOString() };
   // 1. Sitzung abfragen: Neon Auth liefert das JWT im Header set-auth-jwt
   try {
     const r = await fetch('/api/auth/get-session', { credentials: 'include', cache: 'no-store' });
-    const t = usable(r.headers.get('set-auth-jwt'));
+    const raw = r.headers.get('set-auth-jwt');
+    const body = await r.clone().json().catch(() => 'unlesbar');
+    diag.getSession = { status: r.status, header: !!raw, claims: safeClaims(raw), body: body === null ? null : typeof body === 'object' ? Object.keys(body as object) : body };
+    const t = usable(raw);
     if (t) { cached = t; return t.jwt; }
-    if (r.ok && (await r.clone().json().catch(() => null)) === null) return null; // wirklich abgemeldet
-  } catch { /* weiter mit Schritt 2 */ }
+    if (r.ok && body === null) return null; // wirklich abgemeldet
+  } catch (e) { diag.getSession = { error: String(e) }; }
   // 2. Ausweichweg: Token-Endpunkt
   try {
     const r = await fetch('/api/auth/token', { credentials: 'include', cache: 'no-store' });
-    const t = usable(r.ok ? ((await r.json()) as { token?: string }).token : null);
+    const tok = r.ok ? ((await r.json()) as { token?: string }).token : null;
+    diag.token = { status: r.status, has: !!tok, claims: safeClaims(tok) };
+    const t = usable(tok);
     if (t) { cached = t; return t.jwt; }
-  } catch { /* kein Token */ }
+  } catch (e) { diag.token = { error: String(e) }; }
   return null;
+}
+
+/** Vorübergehende Fehlersuche: Was sieht die Datenbank, was hat der Browser bekommen? */
+export async function reportAuthDebug(reason: string, extra: Record<string, unknown> = {}) {
+  try {
+    const token = cached?.jwt;
+    await fetch(`${DATA_API}/rpc/auth_debug`, {
+      method: 'POST', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+      body: JSON.stringify({ p_client: { reason, ...extra, sentToken: safeClaims(token), diag, ua: navigator.userAgent.slice(0, 120), now: new Date().toISOString() } })
+    });
+  } catch { /* nur Diagnose */ }
 }
 
 /** Aktuelles JWT; force: auf jeden Fall neu holen */
@@ -61,6 +86,8 @@ export async function accessToken(force = false): Promise<string | null> {
 }
 
 export function clearAccessToken() { cached = null; }
+let lastError: Record<string, unknown> | null = null;
+export const lastApiError = () => lastError;
 
 export interface ApiError { message: string; code?: string; status: number }
 
@@ -87,6 +114,7 @@ export async function dataApi<T>(path: string, init: RequestInit = {}, retry = t
   }
   const body = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
   const error: ApiError = { message: body.message ?? `HTTP ${res.status}`, code: body.code, status: res.status };
+  lastError = { path, status: res.status, code: body.code, message: body.message, retry };
   if (retry && needsNewToken(error)) {
     clearAccessToken();
     return dataApi<T>(path, init, false);

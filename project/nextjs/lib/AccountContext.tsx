@@ -11,7 +11,7 @@ import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { ASSETS, fmtQty, type Asset, type CoinSym } from './data';
 import { useQuotes } from './quotes';
 import { authError, neon } from './neon';
-import { clearAccessToken, dataApi, rpc } from './dataApi';
+import { clearAccessToken, dataApi, lastApiError, reportAuthDebug, rpc } from './dataApi';
 import { openPnl, positionsFrom, type Position } from './pnl';
 import ConfirmDialog, { type ConfirmRequest } from '@/components/ConfirmDialog';
 
@@ -129,6 +129,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (u) {
       setUser({ id: u.id, name: u.name || u.email.split('@')[0], email: u.email });
       await load();
+      void reportAuthDebug('startup', { userId: u.id });
     } else {
       setUser(null);
       setBalances(emptyBalances());
@@ -144,10 +145,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const call = useCallback(async (fn: string, args: Record<string, unknown>): Promise<Result> => {
     const { error } = await rpc(fn, args);
     if (error?.code === 'NO_SESSION' || (error && needsLogin(error.message))) {
-      // Auch mit frischem Token kein Nutzer: Sitzung ist wirklich abgelaufen → sauber abmelden
-      await authCall(() => neon().auth.signOut());
-      setUser(null); setBalances(emptyBalances()); setTxs([]);
-      return 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.';
+      await reportAuthDebug('rpc-failed', { fn, error, lastError: lastApiError() });
+      // Auch mit frischem Token kein Nutzer bei der Datenbank angekommen
+      return error?.code === 'NO_SESSION'
+        ? 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.'
+        : 'Die Anmeldung kam bei der Datenbank nicht an. Bitte erneut versuchen.';
     }
     if (error) return dbError(error);
     await load().catch(() => {});
