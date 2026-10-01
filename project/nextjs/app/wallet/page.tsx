@@ -299,6 +299,8 @@ export default function WalletPage() {
   useEffect(() => { if (ready && !user) router.replace('/login?next=/wallet'); }, [ready]);
   if (!ready || !user) return <WalletSkeleton />;
 
+  // Ohne Kurs für einen gehaltenen Wert wäre die Summe zu niedrig: dann lieber Platzhalter zeigen
+  const pricesMissing = ASSETS.some(a => a !== 'USDT' && balances[a] > 0 && !priceOf(a));
   const rows = ASSETS.filter(a => balances[a] > 0)
     .map(a => ({ a, v: balances[a] * priceOf(a) }))
     .sort((x, y) => y.v - x.v);
@@ -311,9 +313,18 @@ export default function WalletPage() {
       <section className="panel grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="flex min-w-0 flex-col gap-2">
           <span className="text-[13px] text-muted">Gesamtguthaben von <span className="font-medium text-ink">{user.name}</span></span>
-          <span className="num break-words text-[40px] font-semibold leading-none tracking-[-0.03em] sm:text-5xl">{fmtUsd(total)}</span>
-          <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT</span>
-          {pnl && (
+          {pricesMissing ? (
+            <>
+              <span className="skeleton h-12 w-64 max-w-full" aria-label="Kurse werden geladen" />
+              <span className="text-sm text-faint">Kurse werden geladen …</span>
+            </>
+          ) : (
+            <>
+              <span className="num break-words text-[40px] font-semibold leading-none tracking-[-0.03em] sm:text-5xl">{fmtUsd(total)}</span>
+              <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT</span>
+            </>
+          )}
+          {pnl && !pricesMissing && (
             <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
               <span className="flex items-baseline gap-1.5"><span className="text-muted">Gewinn/Verlust offen</span><Pnl value={pnl.value} pct={pnl.pct} className="font-semibold" /></span>
               {!!pnl.realized && <span className="flex items-baseline gap-1.5"><span className="text-muted">Realisiert</span><Pnl value={pnl.realized} className="font-medium" /></span>}

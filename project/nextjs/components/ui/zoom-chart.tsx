@@ -244,7 +244,7 @@ export default function ZoomChart({ data, up, label, times, unit }: { data: numb
         </div>
       </div>
       <figcaption className="hint flex flex-wrap justify-between gap-x-3">
-        <span>{!times?.length ? 'Beispielverlauf' : zoomed ? `Ausschnitt ${t(i0)} – ${t(i1)}` : `Verlauf seit ${t(0)}`}</span>
+        <span>{!times?.length ? 'Verlauf' : zoomed ? `Ausschnitt ${t(i0)} – ${t(i1)}` : `Verlauf seit ${t(0)}`}</span>
         <span className="[@media(pointer:coarse)]:hidden">{zoomed ? 'Ziehen zum Verschieben · Doppelklick setzt zurück' : 'Mausrad zum Zoomen'}</span>
         <span className="hidden [@media(pointer:coarse)]:inline">{zoomed ? 'Wischen zum Verschieben · Doppeltippen setzt zurück' : 'Mit zwei Fingern zoomen'}</span>
       </figcaption>

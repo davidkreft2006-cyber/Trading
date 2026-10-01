@@ -6,7 +6,9 @@
     WebSocket für sekündliche Updates). Ohne API-Schlüssel.
   - Aktien, ETFs, Rohstoffe: /api/quotes (Yahoo Finance, serverseitig, in USD umgerechnet).
   - Detailverlauf (15-Minuten-Kerzen) wird nur für das gerade angesehene Instrument geladen (useHistory).
-  Fällt eine Quelle aus, bleiben Beispielwerte (nur ursprüngliche Instrumente) bzw. „–“ stehen.
+  Keine erfundenen Werte: Die zuletzt geladenen echten Kurse werden im Browser gespeichert und beim
+  nächsten Öffnen sofort angezeigt (Status 'cached', „Stand hh:mm“), bis die Live-Daten da sind.
+  Fällt eine Quelle aus, bleibt dieser letzte echte Stand stehen; ohne ihn steht „–“.
 */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { COINS, fmtVol, type Asset, type Category, type Coin } from './data';
@@ -17,7 +19,13 @@ const BINANCE_WS = 'wss://data-stream.binance.vision/stream';
 const PAIRS = COINS.filter(c => c.ids.binance).map(c => c.ids.binance!);
 const SYM_BY_PAIR = new Map(COINS.filter(c => c.ids.binance).map(c => [c.ids.binance!, c.sym as string]));
 
-export type FeedStatus = 'loading' | 'live' | 'fallback';
+/** loading: noch nichts da · live: echte Kurse aus dieser Sitzung · cached: letzter gespeicherter echter Stand · offline: keine Kurse */
+export type FeedStatus = 'loading' | 'live' | 'cached' | 'offline';
+
+const CACHE_KEY = 'auvryn:quotes:v1';
+type Saved = { ts: number; data: Record<string, Partial<Quote>> };
+/** 6 gültige Ziffern reichen für Anzeige und Charts und halten den Speicher klein */
+const r6 = (v: number) => +v.toPrecision(6);
 
 interface Ctx {
   coins: Coin[];
@@ -25,8 +33,10 @@ interface Ctx {
   priceOf: (a: Asset) => number;
   status: { crypto: FeedStatus; tradfi: FeedStatus };
   statusOf: (cat: Category) => FeedStatus;
-  /** true, sobald Kurse aus einer echten Quelle stammen (nicht die Beispielwerte) */
+  /** true, sobald der Kurs in dieser Sitzung live geladen wurde (nicht nur gespeicherter Stand) */
   isLive: (sym: string) => boolean;
+  /** Zeitpunkt des gespeicherten Stands, solange noch nicht alles live ist */
+  cachedAt: number | null;
   /** Detailverlauf für ein Instrument anfordern (lädt höchstens alle 5 Minuten neu) */
   requestHistory: (sym: string) => void;
 }
@@ -61,14 +71,55 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
   const binanceSeen = useRef(new Set<string>()); // Kurs kommt von Binance (hat Vorrang vor CoinGecko)
   const detailed = useRef(new Set<string>());    // Verlauf aus 15-Minuten-Kerzen (hat Vorrang)
   const histLoaded = useRef(new Map<string, number>());
+  const fresh = useRef(new Set<string>());        // in dieser Sitzung live geladen
+  const liveRef = useRef<Live>({});
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const cachedCats = useRef(new Set<'crypto' | 'tradfi'>());
 
-  const merge = useCallback((patch: Live) => {
+  const merge = useCallback((patch: Live, isFresh = true) => {
+    if (isFresh) for (const [k, v] of Object.entries(patch)) if (v.price) fresh.current.add(k);
     setLive(prev => {
       const next = { ...prev };
       for (const [k, v] of Object.entries(patch)) next[k] = { ...next[k], ...v };
+      liveRef.current = next;
       return next;
     });
   }, []);
+
+  // ---- Letzten echten Stand laden (sofort sichtbar) und regelmäßig speichern
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null') as Saved | null;
+      if (saved?.data && Date.now() - saved.ts < 14 * 864e5) {
+        merge(saved.data, false);
+        setCachedAt(saved.ts);
+        for (const c of COINS) if (saved.data[c.sym]?.price) cachedCats.current.add(c.cat === 'crypto' ? 'crypto' : 'tradfi');
+        setStatus(st => ({
+          crypto: st.crypto === 'loading' && cachedCats.current.has('crypto') ? 'cached' : st.crypto,
+          tradfi: st.tradfi === 'loading' && cachedCats.current.has('tradfi') ? 'cached' : st.tradfi
+        }));
+      }
+    } catch { /* ohne Speicher */ }
+    const save = () => {
+      try {
+        const data: Saved['data'] = {};
+        for (const [k, q] of Object.entries(liveRef.current)) {
+          if (!q.price || !fresh.current.has(k)) continue;
+          data[k] = { price: r6(q.price), chg: q.chg && +q.chg.toFixed(2), volNum: q.volNum && Math.round(q.volNum), hist: q.hist?.map(r6), times: q.times, local: q.local };
+        }
+        if (Object.keys(data).length) {
+          // Nur aktualisieren, nichts verlieren: Einträge ohne neue Daten bleiben erhalten
+          const prev = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null') as Saved | null;
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { ...prev?.data, ...data } }));
+        }
+      } catch { /* Speicher voll oder gesperrt */ }
+    };
+    const t = setInterval(save, 30000);
+    const onHide = () => save();
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onHide);
+    return () => { clearInterval(t); window.removeEventListener('pagehide', onHide); document.removeEventListener('visibilitychange', onHide); };
+  }, [merge]);
 
   // ---- Binance: Startwerte per REST. Paketweise, damit ein nicht (mehr) gelistetes Paar
   // nicht die ganze Abfrage scheitern lässt; scheitert ein Paket, einzeln nachladen.
@@ -144,7 +195,7 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
 
     const count = (p: Promise<number>) => p.catch(() => 0);
     Promise.all([count(loadBinanceRest()), count(loadCoinGecko())]).then(([b, g]) => {
-      setStatus(s => ({ ...s, crypto: b + g > 0 ? 'live' : 'fallback' }));
+      setStatus(s => ({ ...s, crypto: b + g > 0 ? 'live' : cachedCats.current.has('crypto') ? 'cached' : 'offline' }));
     });
     connect();
     const cgTimer = setInterval(() => {
@@ -168,9 +219,10 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
         const { quotes } = await getJson<{ quotes: Record<string, Quote> }>('/api/quotes');
         if (!alive) return;
         merge(quotes);
-        setStatus(s => ({ ...s, tradfi: Object.keys(quotes).length ? 'live' : 'fallback' }));
+        const ok = Object.keys(quotes).length > 0;
+        setStatus(s => ({ ...s, tradfi: ok ? 'live' : s.tradfi === 'live' ? 'live' : cachedCats.current.has('tradfi') ? 'cached' : 'offline' }));
       } catch {
-        if (alive) setStatus(s => ({ ...s, tradfi: s.tradfi === 'live' ? 'live' : 'fallback' }));
+        if (alive) setStatus(s => ({ ...s, tradfi: s.tradfi === 'live' ? 'live' : cachedCats.current.has('tradfi') ? 'cached' : 'offline' }));
       }
     };
     load();
@@ -220,10 +272,11 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
       priceOf: a => (a === 'USDT' ? 1 : bySym.get(a)?.price ?? 0),
       status,
       statusOf: cat => (cat === 'crypto' ? status.crypto : status.tradfi),
-      isLive: sym => !!live[sym]?.price,
+      isLive: sym => fresh.current.has(sym),
+      cachedAt: status.crypto === 'live' && status.tradfi === 'live' ? null : cachedAt,
       requestHistory
     };
-  }, [coins, status, live, requestHistory]);
+  }, [coins, status, requestHistory, cachedAt]);
 
   return <QuotesCtx.Provider value={value}>{children}</QuotesCtx.Provider>;
 }

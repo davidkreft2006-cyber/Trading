@@ -4,8 +4,9 @@
   zusätzlich eindeutige Kennungen der Kursanbieter, weil Kürzel allein nicht eindeutig sind:
   - Krypto: CoinGecko-ID (z. B. "avalanche-2") und, falls dort gehandelt, das Binance-Paar (z. B. "AVAXUSDT")
   - Aktien, ETFs, Rohstoffe: Yahoo-Finance-Symbol mit Börsenkürzel (z. B. "SAP.DE", "7203.T", "BRK-B")
-  Live-Kurse kommen aus lib/quotes.tsx. Nur die ursprünglichen Instrumente haben Beispielwerte
-  als Ausweichkurs; alle anderen zeigen „–“, bis ein echter Kurs da ist, und sind bis dahin nicht handelbar.
+  Kurse kommen ausschließlich aus echten Quellen (lib/quotes.tsx). Es gibt keine erfundenen
+  Beispielwerte: bis ein echter Kurs da ist (live oder zuletzt gespeichert), steht „–“ und das
+  Instrument ist nicht handelbar.
 */
 
 export type Category = 'crypto' | 'stock' | 'etf' | 'commodity';
@@ -119,53 +120,23 @@ export interface Coin {
   local?: { price: number; ccy: string };
 }
 
-// Deterministischer Zufallspfad (gleicher Seed = gleiche Kurve), damit Server- und Client-Render identisch sind.
-// Der Pfad wird so geneigt, dass Start- und Endwert zur angegebenen 24h-Änderung passen.
-function makeHist(price: number, chg: number, seed: number, vola = 1): number[] {
-  let t = seed * 0x9e3779b9;
-  const rnd = () => { t = (t + 0x6d2b79f5) | 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
-  const out: number[] = [];
-  let v = 1, drift = 0;
-  for (let i = 0; i < 60; i++) {
-    drift = drift * 0.85 + (rnd() - 0.5) * 0.004 * vola;
-    v *= 1 + drift + (rnd() - 0.5) * 0.006 * vola;
-    out.push(v);
-  }
-  const n = out.length - 1;
-  const norm = out.map(x => (x / out[n]) * price);
-  const tilt = 1 / (1 + chg / 100) / (norm[0] / price);
-  return norm.map((x, i) => x * tilt ** ((n - i) / n));
-}
-
-// Beispielwerte als Ausweichkurs für die ursprünglichen Instrumente [Kurs, 24h %, Volumen]
-const FALLBACK: Partial<Record<CoinSym, [number, number, string]>> = {
-  BTC: [64250, 2.14, '1,82 Mrd.'], ETH: [3120.5, -0.86, '912 Mio.'], SOL: [148.22, 4.37, '421 Mio.'], BNB: [578.4, 0.45, '198 Mio.'],
-  XRP: [0.5234, -1.72, '265 Mio.'], DOGE: [0.1236, 6.02, '143 Mio.'], ADA: [0.3812, -2.41, '88 Mio.'], LINK: [13.46, 1.18, '64 Mio.'],
-  AAPL: [228.52, 0.84, '9,6 Mrd.'], MSFT: [431.18, -0.37, '7,1 Mrd.'], NVDA: [118.46, 2.91, '31,4 Mrd.'], TSLA: [246.81, -1.64, '18,2 Mrd.'],
-  AMZN: [186.33, 0.52, '6,8 Mrd.'],
-  SPY: [562.41, 0.46, '28,7 Mrd.'], QQQ: [482.13, 0.71, '17,9 Mrd.'], URTH: [152.35, 0.28, '214 Mio.'], VT: [118.82, 0.33, '96 Mio.'],
-  XAU: [2381.4, 0.62, '146 Mrd.'], XAG: [28.47, -0.94, '31 Mrd.'], OIL: [82.13, -1.21, '24 Mrd.']
-};
-const parseVol = (v: string) => parseFloat(v.replace(',', '.')) * (v.includes('Mrd.') ? 1e9 : 1e6);
-const VOLA: Record<Category, number> = { crypto: 1, stock: 0.6, etf: 0.35, commodity: 0.45 };
-
 const regionOf = (yahoo: string): Region =>
   /\.(KS|T|HK|TW)$/.test(yahoo) ? 'asia' : /\.(DE|PA|AS|SW|CO|L)$/.test(yahoo) ? 'eu' : 'us';
 
-function make(sym: CoinSym, name: string, cat: Category, ids: Coin['ids'], seed: number): Coin {
-  const quote = cat === 'crypto' ? 'USDT' : 'USD';
-  const fb = FALLBACK[sym];
-  const base = { sym, name, cat, quote, ids, region: ids.yahoo && cat === 'stock' ? regionOf(ids.yahoo) : undefined } as const;
-  if (!fb) return { ...base, price: 0, chg: 0, vol: '–', volNum: 0, hist: [] };
-  const [price, chg, vol] = fb;
-  return { ...base, price, chg, vol: `${vol} ${quote}`, volNum: parseVol(vol), hist: makeHist(price, chg, seed, VOLA[cat]) };
+function make(sym: CoinSym, name: string, cat: Category, ids: Coin['ids']): Coin {
+  // Bewusst ohne erfundene Startwerte: bis echte Kurse da sind, gilt price = 0 („–“, nicht handelbar)
+  return {
+    sym, name, cat, ids, quote: cat === 'crypto' ? 'USDT' : 'USD',
+    region: ids.yahoo && cat === 'stock' ? regionOf(ids.yahoo) : undefined,
+    price: 0, chg: 0, vol: '–', volNum: 0, hist: []
+  };
 }
 
 export const COINS: Coin[] = [
-  ...CRYPTO_DEF.map(([s, n, cg, bn], i) => make(s, n, 'crypto', { coingecko: cg, binance: bn ? `${s}USDT` : undefined }, 3 + i)),
-  ...STOCK_DEF.map(([s, n, y], i) => make(s, n, 'stock', { yahoo: y }, 200 + i)),
-  ...ETF_DEF.map(([s, n, y], i) => make(s, n, 'etf', { yahoo: y }, 400 + i)),
-  ...COMMODITY_DEF.map(([s, n, y], i) => make(s, n, 'commodity', { yahoo: y }, 500 + i))
+  ...CRYPTO_DEF.map(([s, n, cg, bn]) => make(s, n, 'crypto', { coingecko: cg, binance: bn ? `${s}USDT` : undefined })),
+  ...STOCK_DEF.map(([s, n, y]) => make(s, n, 'stock', { yahoo: y })),
+  ...ETF_DEF.map(([s, n, y]) => make(s, n, 'etf', { yahoo: y })),
+  ...COMMODITY_DEF.map(([s, n, y]) => make(s, n, 'commodity', { yahoo: y }))
 ];
 
 /** Alle Assets inkl. USDT (Abrechnungswährung) */

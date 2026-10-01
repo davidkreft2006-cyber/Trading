@@ -14,6 +14,10 @@ import { localPrice, pool, usdFactor, yahooChart } from '@/lib/yahoo';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
+// Letzter erfolgreicher Kurs je Instrument (solange die Server-Instanz lebt). Fällt ein Symbol
+// kurzzeitig aus (z. B. Rate-Limit), wird der letzte echte Wert statt einer Lücke geliefert.
+const lastGood: Record<string, Quote> = {};
+
 // Anzeige-Kürzel -> Yahoo-Symbol
 const SYMBOLS = COINS.filter(c => c.ids.yahoo).map(c => [c.sym, c.ids.yahoo!] as const);
 
@@ -40,8 +44,9 @@ export async function GET() {
       ...(q.ccy !== 'USD' && { local: localPrice(q.price, q.ccy) })
     };
   }
+  Object.assign(lastGood, quotes);
   return NextResponse.json(
-    { quotes, ts: Date.now() },
+    { quotes: { ...lastGood }, ts: Date.now() },
     { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
   );
 }

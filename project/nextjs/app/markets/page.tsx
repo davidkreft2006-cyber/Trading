@@ -26,7 +26,9 @@ function Markets() {
   const inCat = coins.filter(c => (cat === 'all' || c.cat === cat) && (cat !== 'stock' || region === 'all' || c.region === region));
   const priced = inCat.filter(c => c.price > 0);
   // „Alle“: nur live, wenn beide Quellen live sind
-  const feed: FeedStatus = cat !== 'all' ? statusOf(cat) : status.crypto === 'live' && status.tradfi === 'live' ? 'live' : status.crypto === 'loading' || status.tradfi === 'loading' ? 'loading' : 'fallback';
+  // „Alle“: schwächster Zustand beider Quellen
+  const order: FeedStatus[] = ['offline', 'loading', 'cached', 'live'];
+  const feed: FeedStatus = cat !== 'all' ? statusOf(cat) : order[Math.min(order.indexOf(status.crypto), order.indexOf(status.tradfi))];
   // Suche über Kürzel, Name und die Kennungen der Kursanbieter (z. B. „SAP.DE“, „avalanche-2“)
   const list = searchCoins(inCat.filter(c => filter === 'all' || (c.price > 0 && (filter === 'gainers' ? c.chg >= 0 : c.chg < 0))), query);
   const sorted = [...priced].sort((a, b) => b.chg - a.chg);

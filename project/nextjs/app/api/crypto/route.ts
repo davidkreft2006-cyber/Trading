@@ -14,6 +14,9 @@ import type { Quote } from '@/lib/quote-types';
 export const dynamic = 'force-dynamic';
 
 const BASE = process.env.COINGECKO_BASE ?? 'https://api.coingecko.com';
+// Letzter erfolgreicher Stand (solange die Server-Instanz lebt), z. B. bei CoinGecko-Rate-Limit
+const lastGood: Record<string, Quote> = {};
+
 const BY_ID = new Map(COINS.filter(c => c.ids.coingecko).map(c => [c.ids.coingecko!, c.sym]));
 
 interface Market {
@@ -52,8 +55,12 @@ export async function GET() {
         times: hist.map((_, i) => end - (hist.length - 1 - i) * 3600e3)
       };
     }
-    return NextResponse.json({ quotes, ts: Date.now() }, { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } });
+    Object.assign(lastGood, quotes);
+    return NextResponse.json({ quotes: { ...lastGood }, ts: Date.now() }, { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } });
   } catch {
+    if (Object.keys(lastGood).length) {
+      return NextResponse.json({ quotes: { ...lastGood }, ts: Date.now(), stale: true }, { headers: { 'Cache-Control': 'public, s-maxage=20' } });
+    }
     // Kurz cachen, damit ein Ausfall/Rate-Limit nicht bei jedem Aufruf erneut abgefragt wird
     return NextResponse.json({ quotes: {}, ts: Date.now(), error: 'unavailable' }, { status: 502, headers: { 'Cache-Control': 'public, s-maxage=20' } });
   }

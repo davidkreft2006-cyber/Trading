@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, Info } from '@phosphor-icons/react';
 import { fmtChg, fmtPrice, fmtUsd } from '@/lib/data';
-import type { FeedStatus } from '@/lib/quotes';
+import { useQuotes, type FeedStatus } from '@/lib/quotes';
 import ZoomChart from './zoom-chart';
 
 /** Neutrale Monogramm-Marke je Asset. Bewusst ohne Markenfarben der echten Coins. */
@@ -109,7 +109,12 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
 
 /** Herkunft der Kurse. Der Punkt zeigt echten Status (live / Ausweichwerte), keine Deko. */
 export function LiveBadge({ status, delayed = false, className = '' }: { status: FeedStatus; delayed?: boolean; className?: string }) {
-  const text = status === 'loading' ? 'Kurse laden' : status === 'fallback' ? 'Beispielkurse' : delayed ? 'Live, ggf. verzögert' : 'Live';
+  const { cachedAt } = useQuotes();
+  const stand = cachedAt ? new Date(cachedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const text = status === 'loading' ? 'Kurse laden'
+    : status === 'cached' ? `Letzter Stand ${stand}`
+    : status === 'offline' ? 'Kurse gerade nicht verfügbar'
+    : delayed ? 'Live, ggf. verzögert' : 'Live';
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${status === 'live' ? 'text-up' : 'text-faint'} ${className}`} role="status">
       <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${status === 'live' ? 'bg-up motion-safe:animate-pulse' : 'bg-faint'}`} />

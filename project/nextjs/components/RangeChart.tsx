@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { fmtChg, type Coin } from '@/lib/data';
 import { RANGES, rangeOf, type RangeKey } from '@/lib/ranges';
 import { PriceChart, Segmented } from '@/components/ui/primitives';
+import { useQuotes } from '@/lib/quotes';
 
 /*
   Kursverlauf mit Zeitraum-Umschalter (1 Min, 5 Min, Tag, Monat, Jahr).
@@ -33,6 +34,8 @@ async function fetchSeries(coin: Coin, key: RangeKey): Promise<Series> {
 }
 
 function useRangeSeries(coin: Coin, key: RangeKey) {
+  const { statusOf } = useQuotes();
+  const dayLoading = statusOf(coin.cat) === 'loading';
   const id = `${coin.sym}:${key}`;
   const [series, setSeries] = useState<Series | undefined>(() => cache.get(id));
   const [failed, setFailed] = useState(false);
@@ -57,7 +60,7 @@ function useRangeSeries(coin: Coin, key: RangeKey) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (key === '1d') return { hist: coin.hist, times: coin.times ?? [], loading: false, failed: false, note: undefined };
+  if (key === '1d') return { hist: coin.hist, times: coin.times ?? [], loading: coin.hist.length < 2 && dayLoading, failed: false, note: undefined };
   if (!series) return { hist: [], times: [], loading: !failed, failed, note: undefined };
   // Letzter Punkt = aktueller Live-Kurs, damit Chart und Kursanzeige übereinstimmen
   const hist = coin.price ? [...series.hist.slice(0, -1), coin.price] : series.hist;
