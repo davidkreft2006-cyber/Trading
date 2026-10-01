@@ -60,7 +60,9 @@ export default function ZoomChart({ data, up, label, times, unit }: { data: numb
   const zoomed = span < last - 0.5;
   const i0 = Math.max(0, Math.floor(s)), i1 = Math.min(last, Math.ceil(e));
   const visible = data.slice(i0, i1 + 1);
-  const min = Math.min(...visible), max = Math.max(...visible), r = max - min || Math.abs(max) * 0.01 || 1;
+  // Waagerechte Linie (Kurs unverändert): Achse symmetrisch um den Kurs (±0,5 %), Linie mittig
+  const lo = Math.min(...visible), hi0 = Math.max(...visible), pad = hi0 === lo ? Math.abs(lo) * 0.005 || 1 : 0;
+  const min = lo - pad, max = hi0 + pad, r = max - min;
   const W = 600, H = 240, PAD = 8;
   const x = (i: number) => ((i - s) / span) * W;
   const y = (v: number) => PAD + (1 - (v - min) / r) * (H - PAD * 2);

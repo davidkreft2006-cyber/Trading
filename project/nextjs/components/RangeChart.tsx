@@ -57,8 +57,13 @@ function useRangeSeries(coin: Coin, key: RangeKey) {
   const { statusOf, ticksOf } = useQuotes();
   const dayLoading = statusOf(coin.cat) === 'loading';
   const id = `${coin.sym}:${key}`;
-  const [series, setSeries] = useState<Series | undefined>(() => cache.get(id));
-  const [failed, setFailed] = useState(false);
+  // Serie immer zusammen mit ihrer Kennung speichern: nach einem Wechsel von Instrument oder
+  // Zeitraum darf nie (auch nicht für einen Render) die alte Serie angezeigt werden
+  const [state, setState] = useState<{ id: string; s?: Series; failed: boolean }>(() => ({ id, s: cache.get(id), failed: false }));
+  const series = state.id === id ? state.s : cache.get(id);
+  const failed = state.id === id && state.failed;
+  const setSeries = (s: Series | undefined) => setState({ id, s, failed: false });
+  const setFailed = (f: boolean) => setState(st => ({ id, s: st.id === id ? st.s : undefined, failed: f }));
 
   useEffect(() => {
     if (key === '1d') return;

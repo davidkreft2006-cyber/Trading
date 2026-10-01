@@ -11,6 +11,7 @@ import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { ASSETS, fmtQty, type Asset, type CoinSym } from './data';
 import { useQuotes } from './quotes';
 import { authError, neon } from './neon';
+import { clearAccessToken, dataApi, rpc } from './dataApi';
 import { openPnl, positionsFrom, type Position } from './pnl';
 import ConfirmDialog, { type ConfirmRequest } from '@/components/ConfirmDialog';
 
@@ -65,6 +66,8 @@ export const useAccount = () => {
   return c;
 };
 
+const needsLogin = (m: string) => m === 'Nicht angemeldet' || /jwt/i.test(m);
+
 const dbError = (e: { message?: string } | null) =>
   e ? (e.message && !/^[A-Z_]+$/.test(e.message) ? e.message : 'Das hat nicht geklappt. Bitte erneut versuchen.') : null;
 
@@ -96,10 +99,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   /** Guthaben und Verlauf des angemeldeten Nutzers aus der Datenbank laden */
   const load = useCallback(async () => {
-    const db = neon();
     const [b, t] = await Promise.all([
-      db.from('balances').select('asset, amount'),
-      db.from('transactions').select('id, created_at, type, asset, amount, price, total, counterparty').order('created_at', { ascending: false }).limit(5000)
+      dataApi<unknown[]>('balances?select=asset,amount'),
+      dataApi<unknown[]>('transactions?select=id,created_at,type,asset,amount,price,total,counterparty&order=created_at.desc&limit=5000')
     ]);
     if (!b.error && b.data) {
       const next = emptyBalances();
@@ -121,6 +123,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applySession = useCallback(async () => {
+    clearAccessToken();
     const { data } = await neon().auth.getSession();
     const u = data?.user;
     if (u) {
@@ -139,12 +142,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   /** Datenbank-Funktion aufrufen, danach neu laden */
   const call = useCallback(async (fn: string, args: Record<string, unknown>): Promise<Result> => {
-    try {
-      const { error } = await neon().rpc(fn, args);
-      if (error) return dbError(error);
-    } catch (e) {
-      return dbError(e as { message?: string });
+    const { error } = await rpc(fn, args);
+    if (error?.code === 'NO_SESSION' || (error && needsLogin(error.message))) {
+      // Auch mit frischem Token kein Nutzer: Sitzung ist wirklich abgelaufen → sauber abmelden
+      await authCall(() => neon().auth.signOut());
+      setUser(null); setBalances(emptyBalances()); setTxs([]);
+      return 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.';
     }
+    if (error) return dbError(error);
     await load().catch(() => {});
     return null;
   }, [load]);
