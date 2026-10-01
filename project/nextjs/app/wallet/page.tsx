@@ -153,20 +153,24 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
   const open = openPnl(pos, priceOf(asset), qty);
   const share = total ? (value / total) * 100 : 0;
   const history = txs.filter(t => t.asset === asset || (asset === 'USDT' && (t.type === 'buy' || t.type === 'sell'))).slice(0, 6);
-  const btn = 'flex-1 sm:flex-none';
+  // Zwei gleich breite Knöpfe nebeneinander (auch auf dem Handy), wie auf der Startseite
   return (
     <Modal title={`${asset} · ${nameOf(asset)}`} onClose={onClose}
-      footer={coin ? (
-        <>
-          <LiquidButton asChild variant="sell" size="lg" className={btn}><Link href={`/trade?pair=${asset}&side=sell`}><ArrowUpRight />Verkaufen</Link></LiquidButton>
-          <LiquidButton asChild variant="buy" size="lg" className={btn}><Link href={`/trade?pair=${asset}&side=buy`}><ArrowDownLeft />Kaufen</Link></LiquidButton>
-        </>
-      ) : (
-        <>
-          <LiquidButton variant="glass" size="lg" className={btn} onClick={onTransfer}><PaperPlaneTilt />Übertragen</LiquidButton>
-          <LiquidButton variant="primary" size="lg" className={btn} onClick={onAdd}><Plus weight="bold" />Guthaben hinzufügen</LiquidButton>
-        </>
-      )}>
+      footer={
+        <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-[320px]">
+          {coin ? (
+            <>
+              <LiquidButton asChild variant="buy" size="xl" className="w-full px-3"><Link href={`/trade?pair=${encodeURIComponent(asset)}&side=buy`}><ArrowDownLeft />Kaufen</Link></LiquidButton>
+              <LiquidButton asChild variant="sell" size="xl" className="w-full px-3"><Link href={`/trade?pair=${encodeURIComponent(asset)}&side=sell`}><ArrowUpRight />Verkaufen</Link></LiquidButton>
+            </>
+          ) : (
+            <>
+              <LiquidButton variant="primary" size="xl" className="w-full px-3" onClick={onAdd}><Plus weight="bold" />Aufladen</LiquidButton>
+              <LiquidButton variant="glass" size="xl" className="w-full px-3" onClick={onTransfer}><PaperPlaneTilt />Übertragen</LiquidButton>
+            </>
+          )}
+        </div>
+      }>
       <div className="flex items-center gap-3">
         <CoinIcon sym={asset} size="lg" />
         <div className="flex min-w-0 flex-col">
