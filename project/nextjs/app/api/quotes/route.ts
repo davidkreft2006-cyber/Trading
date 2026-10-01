@@ -8,6 +8,7 @@ import { localPrice, pool, usdFactor, yahooChart } from '@/lib/yahoo';
   keine Browser-Abfragen von fremden Seiten erlaubt).
   Kennung je Instrument ist das Yahoo-Symbol mit Börsensuffix (lib/data.ts, ids.yahoo).
   Nicht-USD-Börsen (EUR, CHF, GBp, JPY …) werden mit dem aktuellen Devisenkurs in USD umgerechnet.
+  Inklusive vor- und nachbörslicher Kurse (US: ca. 10:00–02:00 Uhr deutscher Zeit) und Börsenstatus.
   Ergebnis wird am Vercel-CDN 60 s zwischengespeichert.
 */
 
@@ -22,7 +23,7 @@ const lastGood: Record<string, Quote> = {};
 const SYMBOLS = COINS.filter(c => c.ids.yahoo).map(c => [c.sym, c.ids.yahoo!] as const);
 
 export async function GET() {
-  const raw = await pool(SYMBOLS, 16, async ([sym, y]) => [sym, await yahooChart(y)] as const);
+  const raw = await pool(SYMBOLS, 16, async ([sym, y]) => [sym, await yahooChart(y, '1d', '15m', true)] as const);
 
   // Devisenkurse einmal je Währung laden
   const fx = new Map<string, number>();
@@ -41,6 +42,7 @@ export async function GET() {
       chg: q.prev ? (q.price / q.prev - 1) * 100 : 0,
       volNum: q.volume * q.price * k,
       hist: hist.map(v => v * k), times,
+      market: q.market, nextOpen: q.nextOpen,
       ...(q.ccy !== 'USD' && { local: localPrice(q.price, q.ccy) })
     };
   }

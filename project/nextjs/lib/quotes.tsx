@@ -39,6 +39,10 @@ interface Ctx {
   cachedAt: number | null;
   /** Detailverlauf für ein Instrument anfordern (lädt höchstens alle 5 Minuten neu) */
   requestHistory: (sym: string) => void;
+  /** Live-Ticks seit dem Öffnen der Seite: [Zeit in ms, Kurs] */
+  ticksOf: (sym: string) => [number, number][];
+  /** Instrument beobachten: Kurs alle paar Sekunden aktualisieren (gibt Abmeldung zurück) */
+  watch: (sym: string) => () => void;
 }
 
 const QuotesCtx = createContext<Ctx | null>(null);
@@ -48,10 +52,11 @@ export const useQuotes = () => {
   return c;
 };
 
-/** Detailverlauf für das angezeigte Instrument laden */
+/** Detailverlauf laden und den Kurs des angezeigten Instruments im Sekundentakt aktuell halten */
 export function useHistory(sym: string | undefined) {
-  const { requestHistory } = useQuotes();
+  const { requestHistory, watch } = useQuotes();
   useEffect(() => { if (sym) requestHistory(sym); }, [sym, requestHistory]);
+  useEffect(() => (sym ? watch(sym) : undefined), [sym, watch]);
 }
 
 type Live = Record<string, Partial<Quote>>;
@@ -76,8 +81,21 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const cachedCats = useRef(new Set<'crypto' | 'tradfi'>());
 
+  const ticks = useRef(new Map<string, [number, number][]>());
   const merge = useCallback((patch: Live, isFresh = true) => {
-    if (isFresh) for (const [k, v] of Object.entries(patch)) if (v.price) fresh.current.add(k);
+    if (isFresh) {
+      const now = Date.now();
+      for (const [k, v] of Object.entries(patch)) {
+        if (!v.price) continue;
+        fresh.current.add(k);
+        // Tick-Puffer für 1-/5-Sekunden-Charts (max. 1 Std.)
+        const list = ticks.current.get(k) ?? [];
+        const last = list[list.length - 1];
+        if (last && now - last[0] < 900) last[1] = v.price; else list.push([now, v.price]);
+        if (list.length > 3600) list.splice(0, list.length - 3600);
+        ticks.current.set(k, list);
+      }
+    }
     setLive(prev => {
       const next = { ...prev };
       for (const [k, v] of Object.entries(patch)) next[k] = { ...next[k], ...v };
@@ -230,6 +248,34 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; clearInterval(t); };
   }, [merge]);
 
+  // ---- Beobachtete Instrumente ohne Binance-Stream: Einzelkurs alle 3 s (Aktien) bzw. 15 s (CoinGecko)
+  const watched = useRef(new Map<string, number>());
+  const watch = useCallback((sym: string) => {
+    const c = COINS.find(x => x.sym === sym);
+    if (!c || c.ids.binance) return () => {};
+    watched.current.set(sym, (watched.current.get(sym) ?? 0) + 1);
+    return () => {
+      const n = (watched.current.get(sym) ?? 1) - 1;
+      if (n <= 0) watched.current.delete(sym); else watched.current.set(sym, n);
+    };
+  }, []);
+  useEffect(() => {
+    const lastPoll = new Map<string, number>();
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      for (const sym of watched.current.keys()) {
+        const c = COINS.find(x => x.sym === sym)!;
+        const every = c.ids.yahoo ? 3000 : 15000;
+        if (Date.now() - (lastPoll.get(sym) ?? 0) < every) continue;
+        lastPoll.set(sym, Date.now());
+        getJson<{ quote: Partial<Quote> }>(`/api/quote?sym=${encodeURIComponent(sym)}`)
+          .then(({ quote }) => { if (quote.price) merge({ [sym]: quote }); })
+          .catch(() => {});
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [merge]);
+
   // ---- Detailverlauf: 24 h in 15-Minuten-Kerzen von Binance (Aktien haben ihn schon aus /api/quotes)
   const requestHistory = useCallback((sym: string) => {
     const pair = COINS.find(c => c.sym === sym)?.ids.binance;
@@ -260,7 +306,9 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
       vol: q.volNum ? `${fmtVol(q.volNum)} ${c.quote}` : c.vol,
       hist: hasHist ? [...q.hist!.slice(0, -1), q.price] : c.hist,
       times: hasHist ? q.times : undefined,
-      local: q.local
+      local: q.local,
+      market: q.market,
+      nextOpen: q.nextOpen
     };
   }), [live]);
 
@@ -274,9 +322,11 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
       statusOf: cat => (cat === 'crypto' ? status.crypto : status.tradfi),
       isLive: sym => fresh.current.has(sym),
       cachedAt: status.crypto === 'live' && status.tradfi === 'live' ? null : cachedAt,
-      requestHistory
+      requestHistory,
+      ticksOf: sym => ticks.current.get(sym) ?? [],
+      watch
     };
-  }, [coins, status, requestHistory, cachedAt]);
+  }, [coins, status, requestHistory, cachedAt, watch]);
 
   return <QuotesCtx.Provider value={value}>{children}</QuotesCtx.Provider>;
 }

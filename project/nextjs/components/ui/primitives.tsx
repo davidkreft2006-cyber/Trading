@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, Info } from '@phosphor-icons/react';
-import { fmtChg, fmtPrice, fmtUsd } from '@/lib/data';
+import { fmtChg, fmtPrice, fmtUsd, type Coin } from '@/lib/data';
 import { useQuotes, type FeedStatus } from '@/lib/quotes';
 import ZoomChart from './zoom-chart';
 
@@ -118,6 +118,20 @@ export function LiveBadge({ status, delayed = false, className = '' }: { status:
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${status === 'live' ? 'text-up' : 'text-faint'} ${className}`} role="status">
       <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${status === 'live' ? 'bg-up motion-safe:animate-pulse' : 'bg-faint'}`} />
+      {text}
+    </span>
+  );
+}
+
+/** Börsenstatus bei Aktien/ETFs/Rohstoffen: vorbörslich, nachbörslich oder geschlossen (mit nächster Öffnung) */
+export function MarketBadge({ coin, className = '' }: { coin: Coin; className?: string }) {
+  if (!coin.market || coin.market === 'regular') return null;
+  const when = coin.nextOpen
+    ? new Date(coin.nextOpen).toLocaleString('de-DE', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+    : '';
+  const text = coin.market === 'pre' ? 'Vorbörslich' : coin.market === 'post' ? 'Nachbörslich' : `Börse geschlossen${when ? `, Handel ab ${when}` : ''}`;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${coin.market === 'closed' ? 'border-line text-faint' : 'border-accent/40 text-accent'} ${className}`}>
       {text}
     </span>
   );

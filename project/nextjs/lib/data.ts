@@ -9,6 +9,8 @@
   Instrument ist nicht handelbar.
 */
 
+import type { MarketState } from './quote-types';
+
 export type Category = 'crypto' | 'stock' | 'etf' | 'commodity';
 export type Region = 'us' | 'eu' | 'asia';
 
@@ -118,6 +120,9 @@ export interface Coin {
   region?: Region;
   /** Kurs in Börsenwährung, falls nicht USD (z. B. 245,10 EUR) */
   local?: { price: number; ccy: string };
+  /** Börsenstatus bei Aktien/ETFs/Rohstoffen */
+  market?: MarketState;
+  nextOpen?: number;
 }
 
 const regionOf = (yahoo: string): Region =>

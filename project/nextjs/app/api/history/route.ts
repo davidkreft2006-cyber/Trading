@@ -22,15 +22,15 @@ export async function GET(req: NextRequest) {
 
   let hist: number[] = [], times: number[] = [], note: string | undefined;
 
-  if (coin.ids.yahoo) {
-    const s = await yahooChart(coin.ids.yahoo, range.yahoo.range, range.yahoo.interval);
+  if (coin.ids.yahoo && range.yahoo) {
+    const s = await yahooChart(coin.ids.yahoo, range.yahoo.range, range.yahoo.interval, range.yahoo.prePost);
     const k = s ? await usdFactor(s.ccy) : NaN;
     if (s && Number.isFinite(k)) {
       const n = range.yahoo.last ?? s.hist.length;
       hist = s.hist.slice(-n).map(v => v * k);
       times = s.times.slice(-n);
     }
-  } else if (coin.ids.coingecko) {
+  } else if (coin.ids.coingecko && range.coingecko) {
     try {
       const key = process.env.COINGECKO_API_KEY;
       const res = await fetch(`${CG}/api/v3/coins/${encodeURIComponent(coin.ids.coingecko)}/market_chart?vs_currency=usd&days=${range.coingecko.days}`, {

@@ -13,8 +13,10 @@ import { fmtPrice } from '@/lib/data';
   Die y-Achse passt sich immer dem sichtbaren Ausschnitt an.
 */
 
-const fmtTime = (t: number, dateOnly = false) => new Date(t).toLocaleString('de-DE', dateOnly
-  ? { day: '2-digit', month: '2-digit', year: 'numeric' }
+/** Zeitformat je nach Spanne: nur Datum (lange Zeiträume), mit Sekunden (Sekunden-Charts), sonst Datum + Uhrzeit */
+const fmtTime = (t: number, mode: 'date' | 'sec' | 'min' = 'min') => new Date(t).toLocaleString('de-DE',
+  mode === 'date' ? { day: '2-digit', month: '2-digit', year: 'numeric' }
+  : mode === 'sec' ? { hour: '2-digit', minute: '2-digit', second: '2-digit' }
   : { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 type View = { s: number; e: number }; // sichtbarer Bereich als (gebrochene) Indizes
@@ -180,8 +182,9 @@ export default function ZoomChart({ data, up, label, times, unit }: { data: numb
   // Ohne Fadenkreuz markiert der Punkt den letzten sichtbaren Wert
   const hi = hover ?? i1;
   const pct = (i: number) => ((i - s) / span) * 100;
-  const dateOnly = !!times && times.length > 1 && times[last] - times[0] > 60 * 864e5;
-  const t = (i: number) => (times?.[i] ? fmtTime(times[i], dateOnly) : '');
+  const spanMs = times && times.length > 1 ? times[last] - times[0] : 0;
+  const mode = spanMs > 60 * 864e5 ? 'date' : spanMs && spanMs < 30 * 60e3 ? 'sec' : 'min';
+  const t = (i: number) => (times?.[i] ? fmtTime(times[i], mode) : '');
   const btn = 'flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface/85 text-muted backdrop-blur transition-colors hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40';
 
   return (

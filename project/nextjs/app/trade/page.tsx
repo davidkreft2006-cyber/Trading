@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
 import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
-import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, Pnl, Segmented } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, MarketBadge, Pnl, Segmented } from '@/components/ui/primitives';
 import { openPnl } from '@/lib/pnl';
 import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
@@ -114,7 +114,7 @@ function Trade() {
               <CoinIcon sym={coin.sym} size="lg" />
               <div className="flex flex-col">
                 <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{coin.sym}/{coin.quote}</h1>
-                <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}<LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /></span>
+                <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}<LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /><MarketBadge coin={coin} /></span>
               </div>
             </div>
             <div className="flex items-baseline gap-3">

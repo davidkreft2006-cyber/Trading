@@ -7,7 +7,7 @@ import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, 
 import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
-import { Change, CoinIcon, EmptyState, LiveBadge, Note, Pnl } from '@/components/ui/primitives';
+import { Change, CoinIcon, EmptyState, LiveBadge, MarketBadge, Note, Pnl } from '@/components/ui/primitives';
 import { openPnl } from '@/lib/pnl';
 import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
@@ -200,6 +200,7 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
             </div>
           )}
           {open?.partial && <p className="col-span-2 text-xs text-faint">Ein Teil des Bestands wurde ohne Kurs eingezahlt und ist nicht bewertet.</p>}
+          {coin.market === 'closed' && <p className="col-span-2 text-xs text-faint">Die Börse ist gerade geschlossen. Gewinn/Verlust ändert sich erst wieder, wenn {coin.sym} gehandelt wird{coin.nextOpen ? ` (ab ${new Date(coin.nextOpen).toLocaleString('de-DE', { weekday: 'short', hour: '2-digit', minute: '2-digit' })})` : ''}.</p>}
         </dl>
       ) : null}
 
@@ -227,7 +228,7 @@ function AssetModal({ asset, onClose, onAdd, onTransfer }: { asset: Asset; onClo
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[13px] font-medium text-muted">Kursverlauf</span>
-            <LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} />
+            <span className="flex flex-wrap items-center justify-end gap-2"><MarketBadge coin={coin} /><LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /></span>
           </div>
           <RangeChart coin={coin} />
           <p className="hint">Kursquelle: {sourceLabel(coin)}</p>
