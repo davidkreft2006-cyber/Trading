@@ -13,6 +13,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { COINS, fmtVol, type Asset, type Category, type Coin } from './data';
 import type { Quote } from './quote-types';
+import { reportAuthDebug } from './dataApi';
 
 const BINANCE_REST = 'https://data-api.binance.vision';
 const BINANCE_WS = 'wss://data-stream.binance.vision/stream';
@@ -37,6 +38,8 @@ interface Ctx {
   isLive: (sym: string) => boolean;
   /** Zeitpunkt des gespeicherten Stands, solange noch nicht alles live ist */
   cachedAt: number | null;
+  /** Dollar-Betrag in Euro (null, solange kein Devisenkurs da ist) */
+  toEur: (usd: number) => number | null;
   /** Detailverlauf für ein Instrument anfordern (lädt höchstens alle 5 Minuten neu) */
   requestHistory: (sym: string) => void;
   /** Live-Ticks seit dem Öffnen der Seite: [Zeit in ms, Kurs] */
@@ -79,6 +82,9 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
   const fresh = useRef(new Set<string>());        // in dieser Sitzung live geladen
   const liveRef = useRef<Live>({});
   const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [eurUsd, setEurUsd] = useState<number | null>(null);
+  // Zähler für die Fehlersuche: welche Quelle hat wann geliefert?
+  const stats = useRef({ binanceRest: 0, binanceRestErr: '', ws: 0, wsLast: 0, wsOpen: 0, wsClose: 0, coingecko: 0, coingeckoErr: '', yahoo: 0, yahooErr: '' });
   const cachedCats = useRef(new Set<'crypto' | 'tradfi'>());
 
   const ticks = useRef(new Map<string, [number, number][]>());
@@ -158,12 +164,14 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
       patch[sym] = { price: +t.lastPrice, chg: +t.priceChangePercent, volNum: +t.quoteVolume };
     }
     merge(patch);
+    stats.current.binanceRest += Object.keys(patch).length;
     return Object.keys(patch).length;
   }, [merge]);
 
   // ---- CoinGecko (über eigene Route): alle Coins inkl. 24h-Verlauf
   const loadCoinGecko = useCallback(async () => {
-    const { quotes } = await getJson<{ quotes: Record<string, Quote> }>('/api/crypto');
+    const { quotes } = await getJson<{ quotes: Record<string, Quote> }>('/api/crypto').catch(e => { stats.current.coingeckoErr = String(e); throw e; });
+    stats.current.coingecko = Object.keys(quotes).length;
     const patch: Live = {};
     for (const [sym, q] of Object.entries(quotes)) {
       const histPart = detailed.current.has(sym) ? {} : { hist: q.hist, times: q.times };
@@ -192,7 +200,7 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
     const connect = () => {
       const streams = PAIRS.map(p => `${p.toLowerCase()}@miniTicker`).join('/');
       try { ws = new WebSocket(`${BINANCE_WS}?streams=${streams}`); } catch { startPolling(); return; }
-      ws.onopen = () => { retry = 0; if (poll) { clearInterval(poll); poll = undefined; } };
+      ws.onopen = () => { stats.current.wsOpen++; retry = 0; if (poll) { clearInterval(poll); poll = undefined; } };
       ws.onmessage = ev => {
         try {
           const d = JSON.parse(ev.data as string).data as { s: string; c: string; o: string; q: string };
@@ -200,10 +208,11 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
           if (!sym) return;
           const c = +d.c, o = +d.o;
           binanceSeen.current.add(sym);
+          stats.current.ws++; stats.current.wsLast = Date.now();
           pending.current[sym] = { ...pending.current[sym], price: c, chg: o ? (c / o - 1) * 100 : 0, volNum: +d.q };
         } catch { /* unbekanntes Format ignorieren */ }
       };
-      ws.onclose = () => {
+      ws.onclose = () => { stats.current.wsClose++;
         if (closed) return;
         startPolling(); // solange der Stream weg ist, per REST aktualisieren
         reconnect = setTimeout(connect, Math.min(30000, 2000 * 2 ** retry++));
@@ -234,8 +243,10 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
     let alive = true;
     const load = async () => {
       try {
-        const { quotes } = await getJson<{ quotes: Record<string, Quote> }>('/api/quotes');
+        const { quotes, eurUsd: eu } = await getJson<{ quotes: Record<string, Quote>; eurUsd?: number | null }>('/api/quotes');
         if (!alive) return;
+        if (eu) setEurUsd(eu);
+        stats.current.yahoo = Object.keys(quotes).length;
         merge(quotes);
         const ok = Object.keys(quotes).length > 0;
         setStatus(s => ({ ...s, tradfi: ok ? 'live' : s.tradfi === 'live' ? 'live' : cachedCats.current.has('tradfi') ? 'cached' : 'offline' }));
@@ -322,11 +333,23 @@ export function QuotesProvider({ children }: { children: ReactNode }) {
       statusOf: cat => (cat === 'crypto' ? status.crypto : status.tradfi),
       isLive: sym => fresh.current.has(sym),
       cachedAt: status.crypto === 'live' && status.tradfi === 'live' ? null : cachedAt,
+      toEur: usd => (eurUsd ? usd / eurUsd : null),
       requestHistory,
       ticksOf: sym => ticks.current.get(sym) ?? [],
       watch
     };
-  }, [coins, status, requestHistory, cachedAt, watch]);
+  }, [coins, status, requestHistory, cachedAt, watch, eurUsd]);
+
+  // Vorübergehende Fehlersuche: 12 s nach dem Laden einmal melden, welche Kurse angezeigt werden
+  const snapshot = useRef<() => Record<string, unknown>>(() => ({}));
+  snapshot.current = () => {
+    const pick = (s: string) => { const c = coins.find(x => x.sym === s); return c && { price: c.price, chg: +c.chg.toFixed(2), live: fresh.current.has(s), binance: binanceSeen.current.has(s), hist: c.hist.length }; };
+    return { status, cachedAt, eurUsd, stats: stats.current, BTC: pick('BTC'), ETH: pick('ETH'), NVDA: pick('NVDA'), HYPE: pick('HYPE') };
+  };
+  useEffect(() => {
+    const t = setTimeout(() => { void reportAuthDebug('prices', snapshot.current()); }, 12000);
+    return () => clearTimeout(t);
+  }, []);
 
   return <QuotesCtx.Provider value={value}>{children}</QuotesCtx.Provider>;
 }

@@ -177,6 +177,7 @@ export const fmtPrice = (p: number) =>
   !p ? '–' : p >= 1 ? nf(p, 2) : p >= 0.01 ? nf(p, 4) : p.toLocaleString('de-DE', { maximumSignificantDigits: 4 });
 export const fmtQty = (q: number) => q.toLocaleString('de-DE', { maximumFractionDigits: 8 });
 export const fmtUsd = (v: number) => v.toLocaleString('de-DE', { style: 'currency', currency: 'USD' });
+export const fmtEur = (v: number) => v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: v < 1 ? 6 : 2 });
 export const fmtChg = (c: number) => `${c >= 0 ? '+' : '−'}${nf(Math.abs(c), 2)} %`;
 // Akzeptiert deutsche Schreibweise ("12.500,5", "1.000") und einfache Dezimalpunkte ("0.25").
 export const parseAmount = (s: string) => {

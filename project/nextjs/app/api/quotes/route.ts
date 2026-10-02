@@ -18,6 +18,7 @@ export const maxDuration = 30;
 // Letzter erfolgreicher Kurs je Instrument (solange die Server-Instanz lebt). Fällt ein Symbol
 // kurzzeitig aus (z. B. Rate-Limit), wird der letzte echte Wert statt einer Lücke geliefert.
 const lastGood: Record<string, Quote> = {};
+let lastEurUsd: number | null = null;
 
 // Anzeige-Kürzel -> Yahoo-Symbol
 const SYMBOLS = COINS.filter(c => c.ids.yahoo).map(c => [c.sym, c.ids.yahoo!] as const);
@@ -47,8 +48,11 @@ export async function GET() {
     };
   }
   Object.assign(lastGood, quotes);
+  // Euro-Kurs für die Zusatzanzeige in € (1 EUR = eurUsd USD)
+  const eur = await usdFactor('EUR', fx);
+  if (Number.isFinite(eur)) lastEurUsd = eur;
   return NextResponse.json(
-    { quotes: { ...lastGood }, ts: Date.now() },
+    { quotes: { ...lastGood }, eurUsd: lastEurUsd, ts: Date.now() },
     { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
   );
 }

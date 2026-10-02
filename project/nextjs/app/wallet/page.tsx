@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowDownLeft, ArrowUpRight, CaretRight, ClockCounterClockwise, PaperPlaneTilt, Plus, Wallet as WalletIcon } from '@phosphor-icons/react';
-import { ASSETS, FUNDABLE, categoryLabel, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, sourceLabel, type Asset } from '@/lib/data';
+import { ASSETS, FUNDABLE, categoryLabel, fmtEur, fmtPrice, fmtQty, fmtUsd, nameOf, nf, parseAmount, sourceLabel, type Asset } from '@/lib/data';
 import { useHistory, useQuotes } from '@/lib/quotes';
 import { useAccount, type Tx } from '@/lib/AccountContext';
 import Modal, { ModalCancel, ModalSubmit } from '@/components/Modal';
@@ -290,7 +290,7 @@ function WalletSkeleton() {
 
 export default function WalletPage() {
   const { ready, user, balances, txs, total, positions, pnl } = useAccount();
-  const { priceOf } = useQuotes();
+  const { priceOf, toEur } = useQuotes();
   const router = useRouter();
   const [modal, setModal] = useState<{ kind: 'add'; initial?: { asset: Asset; amount: string } } | { kind: 'transfer'; asset?: Asset } | { kind: 'asset'; asset: Asset } | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -322,7 +322,7 @@ export default function WalletPage() {
           ) : (
             <>
               <span className="num break-words text-[40px] font-semibold leading-none tracking-[-0.03em] sm:text-5xl">{fmtUsd(total)}</span>
-              <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT</span>
+              <span className="text-sm text-faint">≈ <span className="num">{nf(total, 2)}</span> USDT{toEur(total) !== null && <> · <span className="num">{fmtEur(toEur(total)!)}</span></>}</span>
             </>
           )}
           {pnl && !pricesMissing && (

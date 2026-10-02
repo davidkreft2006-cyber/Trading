@@ -3,7 +3,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
-import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
+import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtEur, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
 import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, MarketBadge, Pnl, Segmented } from '@/components/ui/primitives';
 import { openPnl } from '@/lib/pnl';
@@ -41,7 +41,7 @@ function Trade() {
   const params = useSearchParams();
   const router = useRouter();
   const { ready, user, balances, txs, trade, confirm, positions } = useAccount();
-  const { coins, statusOf } = useQuotes();
+  const { coins, statusOf, toEur } = useQuotes();
   const coin = coins.find(c => c.sym === params.get('pair')) ?? coins[0];
   const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy');
   const [qty, setQty] = useState('');
@@ -117,9 +117,15 @@ function Trade() {
                 <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}<LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /><MarketBadge coin={coin} /></span>
               </div>
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="num text-[28px] font-semibold leading-none"><FlashValue value={coin.price}>{fmtPrice(coin.price)}</FlashValue></span>
-              {hasPrice && <Change value={coin.chg} className="text-sm" />}
+            <div className="flex flex-col items-start gap-1 sm:items-end">
+              <div className="flex items-baseline gap-3">
+                <span className="num text-[28px] font-semibold leading-none"><FlashValue value={coin.price}>{fmtPrice(coin.price)}</FlashValue></span>
+                {hasPrice && <Change value={coin.chg} className="text-sm" />}
+              </div>
+              {/* Kurse sind in US-Dollar; zur Orientierung zusätzlich in Euro */}
+              {hasPrice && toEur(coin.price) !== null && (
+                <span className="num text-[13px] text-muted">≈ {fmtEur(toEur(coin.price)!)} <span className="text-faint">· in {coin.quote}</span></span>
+              )}
             </div>
           </div>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-line py-3 sm:grid-cols-4">
