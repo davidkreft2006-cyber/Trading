@@ -2,7 +2,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, CaretDown, Info, Receipt } from '@phosphor-icons/react';
 import { FEATURED_CRYPTO, FEATURED_STOCKS, categoryLabel, fmtEur, fmtPrice, fmtQty, nf, parseAmount, sourceLabel, volShort, type Coin } from '@/lib/data';
 import { useAccount } from '@/lib/AccountContext';
 import { Change, CoinIcon, EmptyState, FlashValue, LiveBadge, MarketBadge, Pnl, Segmented } from '@/components/ui/primitives';
@@ -10,6 +10,7 @@ import { openPnl } from '@/lib/pnl';
 import RangeChart from '@/components/RangeChart';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import PairPicker from '@/components/PairPicker';
+import Modal from '@/components/Modal';
 import { useHistory, useQuotes } from '@/lib/quotes';
 
 /** Schnellauswahl: beliebte Paare der Kategorie (nach Volumen), das aktive immer dabei */
@@ -47,6 +48,7 @@ function Trade() {
   const [qty, setQty] = useState('');
   const [err, setErr] = useState('');
   const [picker, setPicker] = useState(false);
+  const [sheet, setSheet] = useState(false);
   useHistory(coin.sym);
   const buying = side === 'buy';
   const hasPrice = coin.price > 0;
@@ -72,6 +74,7 @@ function Trade() {
     if (!buying && q > balances[coin.sym] + 1e-12) return setErr(`Nicht genügend ${coin.sym}.`);
     const price = coin.price; // Kurs zum Zeitpunkt der Bestätigung
     const tot = q * price;
+    setSheet(false);
     confirm({
       title: `${buying ? 'Kauf' : 'Verkauf'} bestätigen`,
       label: buying ? 'Kauf ausführen' : 'Verkauf ausführen',
@@ -91,14 +94,83 @@ function Trade() {
     ['Dein Bestand', user && ready ? `${fmtQty(balances[coin.sym])} ${coin.sym}` : 'Nicht angemeldet']
   ];
 
+  // Order-Formular: am Rechner in der Seitenleiste, auf dem Handy als Blatt von unten
+  const ticket = (idp: string) => (
+    <>
+          <Segmented label="Seite" value={side} onChange={v => { setSide(v); setErr(''); }} className="w-full"
+        options={[
+          { value: 'buy', label: 'Kaufen', activeClass: 'bg-up text-white' },
+          { value: 'sell', label: 'Verkaufen', activeClass: 'bg-down text-white' }
+        ]} />
+      <dl className="flex flex-col gap-2 text-sm">
+        <div className="flex justify-between gap-3"><dt className="text-muted">Verfügbar</dt>
+          <dd className="num font-medium">{!ready ? '…' : user ? (buying ? `${fmtQty(balances.USDT)} USDT` : `${fmtQty(balances[coin.sym])} ${coin.sym}`) : 'Anmeldung nötig'}</dd></div>
+        {open && (
+          <div className="flex justify-between gap-3"><dt className="text-muted">Gewinn/Verlust {coin.sym}</dt>
+            <dd className="font-medium"><Pnl value={open.value} pct={open.pct} /></dd></div>
+        )}
+        <div className="flex justify-between gap-3"><dt className="text-muted">Preis (Market)</dt><dd className="num font-medium">{fmtPrice(coin.price)} {coin.quote}</dd></div>
+      </dl>
+      <div className="flex flex-col gap-2">
+        <label htmlFor={`${idp}-qty`} className="label">Menge</label>
+        <div className="relative">
+          <input id={`${idp}-qty`} className="field num pr-16" inputMode="decimal" autoComplete="off" placeholder="0,00" value={qty} aria-invalid={!!err}
+            onChange={e => { setQty(e.target.value); setErr(''); }} />
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[13px] font-medium text-faint">{coin.sym}</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {[25, 50, 75, 100].map(p => (
+            <LiquidButton key={p} type="button" variant="glass" size="sm" className="px-0 font-mono" onClick={() => setPct(p)}>{p === 100 ? 'Max' : `${p} %`}</LiquidButton>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-baseline justify-between border-t border-line pt-3">
+        <span className="text-sm text-muted">Gesamt</span>
+        <span className="num text-lg font-semibold">{nf(total, 2)} <span className="text-sm font-normal text-muted">USDT</span></span>
+      </div>
+      {err && <p role="alert" className="-mt-1 text-[13px] font-medium text-down">{err}</p>}
+      {user || !ready ? (
+        <LiquidButton variant={buying ? 'buy' : 'sell'} size="xl" className="w-full" onClick={submit} disabled={!hasPrice}>
+          {coin.sym} {buying ? 'kaufen' : 'verkaufen'}
+        </LiquidButton>
+      ) : (
+        <LiquidButton variant="primary" size="xl" className="w-full" onClick={submit}>Anmelden, um zu handeln<ArrowRight weight="bold" /></LiquidButton>
+      )}
+      <p className="flex gap-2 text-[13px] leading-snug text-faint">
+        <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
+        {hasPrice ? 'Market-Order zum angezeigten Kurs' : 'Handel möglich, sobald ein Live-Kurs vorliegt'}{hasPrice ? `${coin.quote === 'USD' ? ', abgerechnet in USDT (1 USDT = 1 USD)' : ''}. Vor der Ausführung siehst du eine Übersicht.` : '.'}
+      </p>
+    </>
+  );
+
+  const openSheet = (s2: 'buy' | 'sell') => { setSide(s2); setErr(''); setSheet(true); };
+
   return (
-    <div className="wrap flex flex-col gap-5 pt-6 md:pt-8">
+    <div className="wrap flex flex-col gap-5 pt-4 max-md:pb-24 md:pt-8">
+      {sheet && (
+        <Modal title={`${coin.sym} ${buying ? 'kaufen' : 'verkaufen'}`} description={`${fmtPrice(coin.price)} ${coin.quote} · Market-Order`} onClose={() => setSheet(false)}>
+          {ticket('sheet')}
+        </Modal>
+      )}
+      {/* Handy: Kaufen/Verkaufen immer im Daumenbereich, über der Tab-Leiste */}
+      {!sheet && (
+        <div className="fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-header border-t border-line/70 bg-bg/85 px-4 py-2.5 backdrop-blur-xl md:hidden">
+          {user || !ready ? (
+            <div className="grid grid-cols-2 gap-2">
+              <LiquidButton variant="buy" size="xl" className="w-full" onClick={() => openSheet('buy')} disabled={!hasPrice}><ArrowDownLeft weight="bold" />Kaufen</LiquidButton>
+              <LiquidButton variant="sell" size="xl" className="w-full" onClick={() => openSheet('sell')} disabled={!hasPrice || !(balances[coin.sym] > 0)}><ArrowUpRight weight="bold" />Verkaufen</LiquidButton>
+            </div>
+          ) : (
+            <LiquidButton variant="primary" size="xl" className="w-full" onClick={submit}>Anmelden, um zu handeln<ArrowRight weight="bold" /></LiquidButton>
+          )}
+        </div>
+      )}
       {picker && (
         <PairPicker initialCat={coin.cat} active={coin.sym} onClose={() => setPicker(false)}
           onPick={c => { setPicker(false); setQty(''); setErr(''); router.push(`/trade?pair=${encodeURIComponent(c.sym)}`); }} />
       )}
       <div className="flex flex-col gap-3">
-        <LiquidButton variant="glass" size="lg" className="self-start pl-2 pr-4" onClick={() => setPicker(true)} aria-haspopup="dialog">
+        <LiquidButton variant="glass" size="lg" className="hidden self-start pl-2 pr-4 md:inline-flex" onClick={() => setPicker(true)} aria-haspopup="dialog">
           <CoinIcon sym={coin.sym} size="sm" />
           <span className="font-semibold">{coin.sym}<span className="font-normal text-faint">/{coin.quote}</span></span>
           <span className="text-faint">Paar wechseln</span>
@@ -108,12 +180,18 @@ function Trade() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:items-start">
-        <section className="panel flex min-w-0 flex-col gap-5 p-4 sm:p-5 lg:col-start-1 lg:row-start-1">
+        <section className="panel flex min-w-0 flex-col gap-5 p-4 max-md:-mx-4 max-md:rounded-none max-md:border-x-0 sm:p-5 lg:col-start-1 lg:row-start-1">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
             <div className="flex items-center gap-3">
               <CoinIcon sym={coin.sym} size="lg" />
               <div className="flex flex-col">
-                <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">{coin.sym}/{coin.quote}</h1>
+                <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em]">
+                  {/* Handy: Paarname antippen = Paar wechseln (wie in Trading-Apps) */}
+                  <button type="button" onClick={() => setPicker(true)} aria-haspopup="dialog" aria-label={`${coin.sym}/${coin.quote}, Paar wechseln`}
+                    className="inline-flex items-center gap-1.5 rounded-ctl md:pointer-events-none">
+                    {coin.sym}/{coin.quote}<CaretDown weight="bold" className="h-4 w-4 text-faint md:hidden" />
+                  </button>
+                </h1>
                 <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted">{coin.name} · {categoryLabel(coin.cat)}<LiveBadge status={statusOf(coin.cat)} delayed={coin.cat !== 'crypto'} /><MarketBadge coin={coin} /></span>
               </div>
             </div>
@@ -140,51 +218,16 @@ function Trade() {
           <p className="hint -mt-3">Kursquelle: {sourceLabel(coin)}{coin.local ? `, umgerechnet von ${coin.local.ccy} in USD` : ''}</p>
         </section>
 
-        <aside aria-label="Order-Ticket" className="panel flex flex-col gap-4 p-4 sm:p-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          <Segmented label="Seite" value={side} onChange={v => { setSide(v); setErr(''); }} className="w-full"
-            options={[
-              { value: 'buy', label: 'Kaufen', activeClass: 'bg-up text-white' },
-              { value: 'sell', label: 'Verkaufen', activeClass: 'bg-down text-white' }
-            ]} />
-          <dl className="flex flex-col gap-2 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-muted">Verfügbar</dt>
-              <dd className="num font-medium">{!ready ? '…' : user ? (buying ? `${fmtQty(balances.USDT)} USDT` : `${fmtQty(balances[coin.sym])} ${coin.sym}`) : 'Anmeldung nötig'}</dd></div>
-            {open && (
-              <div className="flex justify-between gap-3"><dt className="text-muted">Gewinn/Verlust {coin.sym}</dt>
-                <dd className="font-medium"><Pnl value={open.value} pct={open.pct} /></dd></div>
-            )}
-            <div className="flex justify-between gap-3"><dt className="text-muted">Preis (Market)</dt><dd className="num font-medium">{fmtPrice(coin.price)} {coin.quote}</dd></div>
-          </dl>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="qty" className="label">Menge</label>
-            <div className="relative">
-              <input id="qty" className="field num pr-16" inputMode="decimal" autoComplete="off" placeholder="0,00" value={qty} aria-invalid={!!err}
-                onChange={e => { setQty(e.target.value); setErr(''); }} />
-              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[13px] font-medium text-faint">{coin.sym}</span>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[25, 50, 75, 100].map(p => (
-                <LiquidButton key={p} type="button" variant="glass" size="sm" className="px-0 font-mono" onClick={() => setPct(p)}>{p === 100 ? 'Max' : `${p} %`}</LiquidButton>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between border-t border-line pt-3">
-            <span className="text-sm text-muted">Gesamt</span>
-            <span className="num text-lg font-semibold">{nf(total, 2)} <span className="text-sm font-normal text-muted">USDT</span></span>
-          </div>
-          {err && <p role="alert" className="-mt-1 text-[13px] font-medium text-down">{err}</p>}
-          {user || !ready ? (
-            <LiquidButton variant={buying ? 'buy' : 'sell'} size="xl" className="w-full" onClick={submit} disabled={!hasPrice}>
-              {coin.sym} {buying ? 'kaufen' : 'verkaufen'}
-            </LiquidButton>
-          ) : (
-            <LiquidButton variant="primary" size="xl" className="w-full" onClick={submit}>Anmelden, um zu handeln<ArrowRight weight="bold" /></LiquidButton>
-          )}
-          <p className="flex gap-2 text-[13px] leading-snug text-faint">
-            <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
-            {hasPrice ? 'Market-Order zum angezeigten Kurs' : 'Handel möglich, sobald ein Live-Kurs vorliegt'}{hasPrice ? `${coin.quote === 'USD' ? ', abgerechnet in USDT (1 USDT = 1 USD)' : ''}. Vor der Ausführung siehst du eine Übersicht.` : '.'}
-          </p>
+        <aside aria-label="Order-Ticket" className="panel hidden flex-col gap-4 p-4 sm:p-5 md:flex lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {ticket('aside')}
         </aside>
+        {user && balances[coin.sym] > 0 && (
+          <section aria-label="Deine Position" className="panel grid grid-cols-2 gap-x-4 gap-y-3 p-4 md:hidden">
+            <div className="flex flex-col gap-0.5"><span className="text-xs text-faint">Dein Bestand</span><span className="num text-sm font-medium">{fmtQty(balances[coin.sym])} {coin.sym}</span></div>
+            <div className="flex flex-col items-end gap-0.5"><span className="text-xs text-faint">Wert</span><span className="num text-sm font-medium">{nf(balances[coin.sym] * coin.price, 2)} USDT</span></div>
+            {open && <div className="col-span-2 flex items-baseline justify-between border-t border-line pt-3"><span className="text-xs text-faint">Gewinn/Verlust (live)</span><Pnl value={open.value} pct={open.pct} className="text-sm font-semibold" /></div>}
+          </section>
+        )}
         <section className="panel overflow-hidden lg:col-start-1 lg:row-start-2">
           <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
             <h2 className="text-[15px] font-semibold">Deine Orders in {coin.sym}</h2>

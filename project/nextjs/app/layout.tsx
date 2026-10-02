@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: 'Krypto-Märkte, Handel und Wallet. Konto, Wallet und Handel mit Live-Kursen.',
   robots: { index: false, follow: false },
   // Vom iPhone-Home-Bildschirm aus als eigene App starten (ohne Safari-Leiste)
-  appleWebApp: { capable: true, title: 'Auvryn', statusBarStyle: 'black' }
+  appleWebApp: { capable: true, title: 'Auvryn', statusBarStyle: 'black-translucent' }
 };
 export const viewport: Viewport = {
   width: 'device-width', initialScale: 1, viewportFit: 'cover',
@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de" className={`dark ${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="flex min-h-[100dvh] flex-col overflow-x-clip pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0">
+      <body className="flex min-h-[100dvh] flex-col overflow-x-clip pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
         <a href="#inhalt" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-toast focus:rounded-ctl focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:shadow">
           Zum Inhalt springen
         </a>

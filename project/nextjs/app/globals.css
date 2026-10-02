@@ -20,7 +20,10 @@
 }
 
 @layer base {
-  html { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+  /* App-Gefühl: kein Doppeltipp-Zoom, kein Gummiband-Scrollen der ganzen Seite, Bedienelemente nicht markierbar */
+  html, body { touch-action: manipulation; overscroll-behavior-y: none; }
+  button, nav, [role='tab'], [role='radio'] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   body { @apply bg-bg font-sans text-[15px] leading-normal text-ink antialiased; font-feature-settings: 'ss01', 'cv11'; }
   :where(a) { color: inherit; text-decoration: none; }
   ::selection { background: rgb(var(--accent) / 0.22); }
@@ -40,7 +43,7 @@
   /* Buttons: components/ui/liquid-glass-button.tsx (LiquidButton) */
 
   .field {
-    @apply h-11 w-full rounded-ctl border border-line-strong bg-field px-3.5 text-[15px] text-ink transition-[border-color,box-shadow] duration-150
+    @apply h-11 w-full rounded-ctl border border-line-strong bg-field px-3.5 text-base md:text-[15px] text-ink transition-[border-color,box-shadow] duration-150
       hover:border-faint/70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/20;
   }
   .field[aria-invalid='true'] { @apply border-down focus:ring-down/20; }

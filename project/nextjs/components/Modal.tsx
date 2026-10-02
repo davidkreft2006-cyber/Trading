@@ -22,7 +22,9 @@ export default function Modal({ title, description, onClose, children, footer, s
     <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[rgb(8_11_15/0.45)] animate-fade sm:items-center sm:p-4" onClick={onClose}>
       <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}
         className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-panel border border-line bg-surface shadow-[0_24px_60px_-20px_rgb(8_11_15/0.45)] outline-none animate-pop sm:rounded-panel ${size === 'sm' ? 'sm:max-w-[420px]' : 'sm:max-w-[460px]'}`}>
-        <div className="flex items-start justify-between gap-4 px-5 pb-1 pt-5">
+        {/* Griff wie bei einem App-Bottom-Sheet (nur Handy) */}
+        <span aria-hidden className="mx-auto mt-2 h-1 w-10 flex-none rounded-full bg-line-strong sm:hidden" />
+        <div className="flex items-start justify-between gap-4 px-5 pb-1 pt-3 sm:pt-5">
           <div className="flex flex-col gap-1">
             <h2 className="text-[17px] font-semibold tracking-[-0.01em]">{title}</h2>
             {description && <p className="text-[13px] text-muted">{description}</p>}
